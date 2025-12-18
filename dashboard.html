@@ -3,90 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nivas Kunj | Enterprise CRM</title>
+    <title>Nivas Kunj | Elite CRM</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap');
-        
-        :root { --sidebar: #09090b; --accent: #6366f1; --surface: #ffffff; }
+        :root { --sidebar: #09090b; --accent: #6366f1; }
         body { font-family: 'Inter', sans-serif; background: #fcfcfd; color: #09090b; overflow: hidden; margin: 0; }
-        h1, h2, .font-heading { font-family: 'Plus Jakarta Sans', sans-serif; }
-
         .app-layout { display: grid; grid-template-columns: auto 1fr; height: 100vh; width: 100vw; }
-        
-        /* Sidebar Styling */
-        .sidebar { 
-            width: 260px; background: var(--sidebar); 
-            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
-            display: flex; flex-direction: column; border-right: 1px solid #18181b;
-            position: relative;
-        }
+        .sidebar { width: 260px; background: var(--sidebar); transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; border-right: 1px solid #18181b; position: relative; }
         .sidebar.collapsed { width: 80px; }
-        
-        /* Floating Toggle */
-        .toggle-trigger {
-            position: absolute; right: -12px; top: 44px;
-            width: 24px; height: 24px; background: #27272a;
-            border-radius: 6px; display: flex; align-items: center; justify-content: center;
-            color: #a1a1aa; cursor: pointer; z-index: 100; border: 1px solid #3f3f46;
-        }
-        .toggle-trigger:hover { color: white; background: var(--accent); border-color: var(--accent); }
-
-        /* Navigation */
-        .nav-item { font-size: 13px; font-weight: 500; color: #71717a; transition: all 0.2s; }
+        .toggle-trigger { position: absolute; right: -12px; top: 44px; width: 24px; height: 24px; background: #27272a; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #a1a1aa; cursor: pointer; z-index: 100; border: 1px solid #3f3f46; }
+        .nav-item { font-size: 13px; font-weight: 500; color: #71717a; }
         .nav-item.active { color: white; background: #18181b; }
-
-        /* Live Pulse Indicator */
         .pulse { width: 7px; height: 7px; background: #10b981; border-radius: 50%; position: relative; }
-        .pulse::after { 
-            content: ""; position: absolute; inset: 0; border-radius: 50%;
-            background: #10b981; animation: pulse-ring 2s infinite; 
-        }
+        .pulse::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #10b981; animation: pulse-ring 2s infinite; }
         @keyframes pulse-ring { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(3); opacity: 0; } }
-
-        /* Row Layout */
-        .crm-grid {
-            display: grid;
-            grid-template-columns: 1.8fr 1fr 1fr 0.8fr 0.8fr 110px;
-            gap: 1.5rem; align-items: center; padding: 0.85rem 1.5rem;
-        }
-        .data-row {
-            margin: 0 1.5rem 0.6rem 1.5rem; border-radius: 12px;
-            background: white; border: 1px solid #f1f1f4;
-            transition: all 0.2s;
-        }
+        .crm-grid { display: grid; grid-template-columns: 1.8fr 1fr 1fr 0.8fr 0.8fr 110px; gap: 1.5rem; align-items: center; padding: 0.85rem 1.5rem; }
+        .data-row { margin: 0 1.5rem 0.6rem 1.5rem; border-radius: 12px; background: white; border: 1px solid #f1f1f4; transition: all 0.2s; }
         .data-row:hover { border-color: #e4e4e7; transform: translateX(4px); background: #fdfdfd; }
-
-        /* Pagination Widget */
-        .pagination-widget {
-            position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
-            background: #09090b; padding: 8px 12px; border-radius: 20px;
-            display: flex; align-items: center; gap: 16px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
-            border: 1px solid #27272a; z-index: 40;
-        }
-        .page-btn { height: 32px; width: 32px; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #a1a1aa; }
-        .page-btn:hover:not(:disabled) { background: #27272a; color: white; }
-
+        .pagination-widget { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); background: #09090b; padding: 8px 12px; border-radius: 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); border: 1px solid #27272a; z-index: 40; }
+        .page-btn { height: 32px; width: 32px; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #a1a1aa; cursor: pointer; }
         .mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
         .sidebar.collapsed .hide-collapsed { display: none; }
+        .sort-header { cursor: pointer; user-select: none; transition: color 0.2s; }
+        .sort-header:hover { color: #6366f1; }
     </style>
 </head>
 <body>
 
     <div class="app-layout">
         <aside id="sidebar" class="sidebar">
-            <div class="toggle-trigger" onclick="toggleSidebar()">
-                <i data-lucide="chevron-left" id="toggleIcon" class="w-3.5 h-3.5"></i>
-            </div>
-
+            <div class="toggle-trigger" onclick="toggleSidebar()"><i data-lucide="chevron-left" id="toggleIcon" class="w-3.5 h-3.5"></i></div>
             <div class="p-6 h-28 flex items-center">
                 <div class="flex items-center gap-3">
-                    <div class="h-9 w-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-500/20">
-                        <i data-lucide="command" class="w-5 h-5"></i>
-                    </div>
+                    <div class="h-9 w-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-500/20"><i data-lucide="command" class="w-5 h-5"></i></div>
                     <div class="hide-collapsed">
                         <h1 class="text-white font-bold text-base tracking-tight leading-none">Nivas Kunj</h1>
                         <div class="flex items-center gap-2 mt-2">
@@ -96,23 +48,13 @@
                     </div>
                 </div>
             </div>
-
             <nav class="flex-1 px-3 space-y-1">
-                <div class="nav-item active flex items-center gap-3 px-4 py-3 rounded-xl border border-white/5 cursor-pointer">
-                    <i data-lucide="layout-grid" class="w-4 h-4"></i>
-                    <span class="hide-collapsed">Executive Dashboard</span>
-                </div>
+                <div class="nav-item active flex items-center gap-3 px-4 py-3 rounded-xl border border-white/5"><i data-lucide="layout-grid" class="w-4 h-4"></i><span class="hide-collapsed">Executive Dashboard</span></div>
             </nav>
-
             <div class="p-6">
                 <div class="hide-collapsed pt-4 border-t border-zinc-800/50">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-[10px] font-medium text-zinc-500">v3.1.3 Stable</span>
-                        <div class="h-1.5 w-1.5 rounded-full bg-indigo-500"></div>
-                    </div>
-                    <p class="text-[8px] text-zinc-600 font-medium uppercase tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
-                        © 2024 Nivas Kunj. All rights reserved.
-                    </p>
+                    <div class="flex items-center justify-between mb-3"><span class="text-[10px] font-medium text-zinc-500">v3.1.5 Stable</span><div class="h-1.5 w-1.5 rounded-full bg-indigo-500"></div></div>
+                    <p class="text-[8px] text-zinc-600 font-medium uppercase tracking-tight whitespace-nowrap overflow-hidden">© 2024 Nivas Kunj. All rights reserved.</p>
                 </div>
             </div>
         </aside>
@@ -127,7 +69,7 @@
                         <input type="date" id="dateTo" onchange="renderDashboard()" class="text-[10px] font-semibold outline-none bg-transparent text-zinc-600">
                         <button onclick="clearDates()" class="p-1 hover:text-indigo-600 text-zinc-400"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button>
                     </div>
-                    <button onclick="fetchAllData()" class="bg-zinc-900 text-white px-5 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-wider hover:bg-indigo-600 transition">Sync Assets</button>
+                    <button onclick="fetchAllData()" class="bg-zinc-900 text-white px-5 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-wider hover:bg-indigo-600 transition shadow-sm">Sync Assets</button>
                 </div>
             </header>
 
@@ -135,17 +77,17 @@
                 <div class="flex gap-3 px-6 mb-6">
                     <div class="relative flex-1">
                         <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 w-4 h-4"></i>
-                        <input type="text" id="searchInput" onkeyup="renderDashboard()" placeholder="Search lead identity..." class="w-full pl-11 pr-4 py-3.5 bg-white border border-zinc-200 rounded-2xl outline-none text-sm">
+                        <input type="text" id="searchInput" onkeyup="renderDashboard()" placeholder="Search lead identity..." class="w-full pl-11 pr-4 py-3.5 bg-white border border-zinc-200 rounded-2xl outline-none text-sm focus:ring-2 focus:ring-indigo-500/10">
                     </div>
                     <select id="statusFilter" onchange="renderDashboard()" class="bg-white border border-zinc-200 rounded-2xl px-6 py-3.5 text-xs font-bold text-zinc-600 outline-none"></select>
                 </div>
 
                 <div class="crm-grid px-10 py-3 mb-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-                    <div>Client Identity</div>
+                    <div class="sort-header flex items-center gap-1" onclick="handleSort('customer_name')">Client Identity <i data-lucide="arrow-up-down" class="w-2.5 h-2.5"></i></div>
                     <div>Lifecycle</div>
                     <div>Interaction</div>
-                    <div>Received</div>
-                    <div>Origin</div>
+                    <div class="sort-header flex items-center gap-1" onclick="handleSort('created_at')">Received <i data-lucide="arrow-up-down" class="w-2.5 h-2.5"></i></div>
+                    <div class="sort-header flex items-center gap-1" onclick="handleSort('source')">Origin <i data-lucide="arrow-up-down" class="w-2.5 h-2.5"></i></div>
                     <div class="text-right">Operations</div>
                 </div>
                 <div id="leadTableBody"></div>
@@ -180,6 +122,7 @@
         const sb = supabase.createClient(S_URL, S_KEY);
 
         let enquiries = [], details = [], statuses = [], comments = [], currentPage = 1, itemsPerPage = 8;
+        let sortCol = 'created_at', sortAsc = false;
 
         async function fetchAllData() {
             const [rEnq, rDet, rSta, rCom] = await Promise.all([
@@ -196,31 +139,52 @@
             renderDashboard();
         }
 
-        function getTimeAgo(dateString) {
-            if (!dateString) return 'Inert';
-            const diff = Math.floor((new Date() - new Date(dateString)) / 1000);
-            if (diff < 3600) return Math.floor(diff/60) + 'm ago';
-            if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
-            return Math.floor(diff/86400) + 'd ago';
+        function handleSort(col) {
+            if (sortCol === col) sortAsc = !sortAsc;
+            else { sortCol = col; sortAsc = true; }
+            renderDashboard();
         }
 
         function renderDashboard() {
             const query = document.getElementById('searchInput').value.toLowerCase();
             const filter = document.getElementById('statusFilter').value;
-            const from = document.getElementById('dateFrom').value;
-            const to = document.getElementById('dateTo').value;
+            const fromStr = document.getElementById('dateFrom').value;
+            const toStr = document.getElementById('dateTo').value;
+
+            // Date Conversion Logic for Precision
+            const dateFrom = fromStr ? new Date(fromStr).setHours(0,0,0,0) : null;
+            const dateTo = toStr ? new Date(toStr).setHours(23,59,59,999) : null;
 
             let filtered = enquiries.filter(item => {
-                const s = details.find(d => d.enquiry_id === item.id)?.status_id || 0;
+                const s = (details.find(d => d.enquiry_id === item.id)?.status_id || 0).toString();
+                const itemDate = new Date(item.created_at).getTime();
+
                 const matchSearch = item.customer_name.toLowerCase().includes(query) || item.email_id.toLowerCase().includes(query);
-                const matchStatus = filter === 'all' || s.toString() === filter;
-                const date = item.created_at.split('T')[0];
-                const matchDate = (!from || date >= from) && (!to || date <= to);
-                return matchSearch && matchStatus && matchDate;
+                const matchStatus = filter === 'all' || s === filter;
+                
+                // Precision Date Filtering Logic
+                const matchDateFrom = !dateFrom || itemDate >= dateFrom;
+                const matchDateTo = !dateTo || itemDate <= dateTo;
+
+                // STRICT AND LOGIC
+                return matchSearch && matchStatus && matchDateFrom && matchDateTo;
             });
 
+            // Sorting Logic
+            filtered.sort((a, b) => {
+                let valA = a[sortCol] || '', valB = b[sortCol] || '';
+                if (sortCol === 'created_at') {
+                    valA = new Date(valA).getTime();
+                    valB = new Date(valB).getTime();
+                }
+                return sortAsc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+            });
+
+            const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+            if (currentPage > totalPages) currentPage = 1;
+
             const paginated = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
-            document.getElementById('paginationInfo').innerText = `${currentPage} / ${Math.ceil(filtered.length / itemsPerPage) || 1}`;
+            document.getElementById('paginationInfo').innerText = `${currentPage} / ${totalPages}`;
             
             document.getElementById('leadTableBody').innerHTML = paginated.map(item => {
                 const sObj = statuses.find(st => st.status_id === (details.find(d => d.enquiry_id === item.id)?.status_id)) || {status_details: 'NEW'};
@@ -230,7 +194,7 @@
                         <div class="crm-grid">
                             <div><div class="font-bold text-zinc-900 text-sm tracking-tight">${item.customer_name}</div><div class="mono text-zinc-400 mt-0.5">${item.email_id}</div></div>
                             <div><span class="px-2 py-0.5 rounded border text-[9px] font-bold ${sObj.status_id === 4 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'}">${sObj.status_details.toUpperCase()}</span></div>
-                            <div class="text-[11px] font-semibold text-zinc-500">${getTimeAgo(lastCom?.created_at)}</div>
+                            <div class="text-[11px] font-semibold text-zinc-500">${lastCom ? getTimeAgo(lastCom.created_at) : 'Fresh'}</div>
                             <div class="mono text-zinc-400">${new Date(item.created_at).toLocaleDateString('en-GB')}</div>
                             <div class="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">${item.source || 'WEB'}</div>
                             <div class="text-right"><button onclick="openLeadModal('${item.id}')" class="px-4 py-1.5 bg-zinc-900 text-white rounded-lg text-[10px] font-bold uppercase hover:bg-indigo-600 transition shadow-sm">Manage</button></div>
@@ -254,15 +218,15 @@
             document.getElementById('modalContent').innerHTML = `
                 <div class="space-y-8">
                     <div class="bg-zinc-900 text-white p-10 rounded-[32px] shadow-xl relative overflow-hidden">
-                        <h4 class="text-[9px] font-bold text-indigo-400 uppercase mb-4 tracking-widest">Inquiry Data</h4>
+                        <h4 class="text-[9px] font-bold text-indigo-400 uppercase mb-4 tracking-widest">Inquiry Brief</h4>
                         <p class="text-xl font-medium leading-relaxed italic">"${lead.query_data}"</p>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
-                        <a href="https://wa.me/${lead.phone_number.replace(/\D/g,'')}" target="_blank" class="flex items-center justify-center gap-3 py-4 bg-emerald-600 text-white rounded-2xl font-bold text-xs uppercase hover:bg-emerald-700 transition shadow-lg shadow-emerald-500/10"><i data-lucide="message-circle" class="w-4 h-4"></i> WhatsApp</a>
-                        <a href="mailto:${lead.email_id}" class="flex items-center justify-center gap-3 py-4 bg-indigo-600 text-white rounded-2xl font-bold text-xs uppercase hover:bg-indigo-700 transition shadow-lg shadow-indigo-500/10"><i data-lucide="mail" class="w-4 h-4"></i> Email</a>
+                        <a href="https://wa.me/${lead.phone_number.replace(/\D/g,'')}" target="_blank" class="flex items-center justify-center gap-3 py-4 bg-emerald-600 text-white rounded-2xl font-bold text-xs uppercase hover:bg-emerald-700 transition"><i data-lucide="message-circle" class="w-4 h-4"></i> WhatsApp</a>
+                        <a href="mailto:${lead.email_id}" class="flex items-center justify-center gap-3 py-4 bg-indigo-600 text-white rounded-2xl font-bold text-xs uppercase hover:bg-indigo-700 transition"><i data-lucide="mail" class="w-4 h-4"></i> Email</a>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-zinc-400 uppercase mb-3 tracking-widest px-1">Pipeline Stage</label>
+                        <label class="block text-[10px] font-bold text-zinc-400 uppercase mb-3 tracking-widest">Pipeline Stage</label>
                         <select onchange="handleStatusUpdate('${id}', this.value)" class="w-full bg-zinc-50 border border-zinc-200 rounded-2xl p-5 text-sm font-bold text-zinc-800 outline-none">
                             <option value="">Move Stage...</option>
                             ${statuses.map(opt => `<option value="${opt.status_id}" ${opt.status_id === sId ? 'selected' : ''}>${opt.status_details.toUpperCase()}</option>`).join('')}
@@ -272,11 +236,11 @@
                 <div class="flex flex-col bg-zinc-50 rounded-[32px] p-10 border border-zinc-100 h-full">
                     <h4 class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-6 px-1">Activity Log</h4>
                     <div class="flex-1 overflow-y-auto space-y-3 mb-6 pr-2">
-                        ${leadComms.map(c => `<div class="p-5 bg-white rounded-2xl border border-zinc-200 shadow-sm"><p class="text-xs font-semibold text-slate-700">${c.comments}</p><span class="mono text-zinc-400 mt-2 block">${new Date(c.created_at).toLocaleString()}</span></div>`).join('') || '<div class="text-center py-20 text-zinc-300 italic text-xs">No entries.</div>'}
+                        ${leadComms.map(c => `<div class="p-5 bg-white rounded-2xl border border-zinc-200 shadow-sm"><p class="text-xs font-semibold text-zinc-700">${c.comments}</p><span class="mono text-zinc-400 mt-2 block">${new Date(c.created_at).toLocaleString()}</span></div>`).join('') || '<div class="text-center py-20 text-zinc-300 italic text-xs">No entries found.</div>'}
                     </div>
                     <div class="flex gap-2 bg-white p-2 rounded-2xl shadow-xl border border-zinc-200">
-                        <input id="noteInput" type="text" placeholder="Update log..." class="flex-1 px-4 outline-none font-semibold text-xs">
-                        <button onclick="handleCommentSave('${id}')" class="bg-zinc-900 text-white px-6 py-2 rounded-xl font-bold text-[10px] uppercase hover:bg-indigo-600">Update</button>
+                        <input id="noteInput" type="text" placeholder="Add a new note..." class="flex-1 px-4 outline-none font-semibold text-xs">
+                        <button onclick="handleCommentSave('${id}')" class="bg-zinc-900 text-white px-6 py-2 rounded-xl font-bold text-[10px] uppercase hover:bg-indigo-600">Post Log</button>
                     </div>
                 </div>
             `;
@@ -296,6 +260,14 @@
             await sb.from('enquiry_comments').insert([{ enquiry_id: eId, comments: val }]);
             await fetchAllData();
             openLeadModal(eId);
+        }
+
+        function getTimeAgo(dateString) {
+            if (!dateString) return 'Pending';
+            const diff = Math.floor((new Date() - new Date(dateString)) / 1000);
+            if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+            if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+            return Math.floor(diff/86400) + 'd ago';
         }
 
         function toggleSidebar() {
