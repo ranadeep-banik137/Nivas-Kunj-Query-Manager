@@ -15,19 +15,21 @@
         .sidebar { width: 260px; background: var(--sidebar); transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; border-right: 1px solid #18181b; position: relative; }
         .sidebar.collapsed { width: 80px; }
         .toggle-trigger { position: absolute; right: -12px; top: 44px; width: 24px; height: 24px; background: #27272a; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #a1a1aa; cursor: pointer; z-index: 100; border: 1px solid #3f3f46; }
-        .nav-item { font-size: 13px; font-weight: 500; color: #71717a; }
+        .nav-item { font-size: 13px; font-weight: 500; color: #71717a; cursor: pointer; }
         .nav-item.active { color: white; background: #18181b; }
         .pulse { width: 7px; height: 7px; background: #10b981; border-radius: 50%; position: relative; }
         .pulse::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #10b981; animation: pulse-ring 2s infinite; }
         @keyframes pulse-ring { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(3); opacity: 0; } }
         .crm-grid { display: grid; grid-template-columns: 1.8fr 1fr 1fr 0.8fr 0.8fr 110px; gap: 1.5rem; align-items: center; padding: 0.85rem 1.5rem; }
         .data-row { margin: 0 1.5rem 0.6rem 1.5rem; border-radius: 12px; background: white; border: 1px solid #f1f1f4; transition: all 0.2s; }
-        .data-row:hover { border-color: #e4e4e7; transform: translateX(4px); background: #fdfdfd; }
-        .pagination-widget { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); background: #09090b; padding: 8px 12px; border-radius: 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); border: 1px solid #27272a; z-index: 40; }
+        .data-row:hover { border-color: #e4e4e7; transform: translateX(4px); }
+        .notification-dot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; border: 2px solid white; z-index: 10; }
+        .pagination-widget { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); background: #09090b; padding: 8px 12px; border-radius: 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4); border: 1px solid #27272a; z-index: 50; }
         .page-btn { height: 32px; width: 32px; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #a1a1aa; cursor: pointer; }
+        .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
         .mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
         .sidebar.collapsed .hide-collapsed { display: none; }
-        .sort-header { cursor: pointer; user-select: none; transition: color 0.2s; }
+        .sort-header { cursor: pointer; display: flex; align-items: center; gap: 4px; transition: color 0.2s; }
         .sort-header:hover { color: #6366f1; }
     </style>
 </head>
@@ -38,38 +40,52 @@
             <div class="toggle-trigger" onclick="toggleSidebar()"><i data-lucide="chevron-left" id="toggleIcon" class="w-3.5 h-3.5"></i></div>
             <div class="p-6 h-28 flex items-center">
                 <div class="flex items-center gap-3">
-                    <div class="h-9 w-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-500/20"><i data-lucide="command" class="w-5 h-5"></i></div>
+                    <div class="h-9 w-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white shrink-0 shadow-lg"><i data-lucide="command" class="w-5 h-5"></i></div>
                     <div class="hide-collapsed">
                         <h1 class="text-white font-bold text-base tracking-tight leading-none">Nivas Kunj</h1>
-                        <div class="flex items-center gap-2 mt-2">
-                            <div class="pulse"></div>
-                            <span class="text-[9px] text-zinc-500 font-semibold uppercase tracking-widest">Live Query Management</span>
-                        </div>
+                        <div class="flex items-center gap-2 mt-2"><div class="pulse"></div><span class="text-[9px] text-zinc-500 font-semibold uppercase tracking-widest">Live Query Management</span></div>
                     </div>
                 </div>
             </div>
-            <nav class="flex-1 px-3 space-y-1">
-                <div class="nav-item active flex items-center gap-3 px-4 py-3 rounded-xl border border-white/5"><i data-lucide="layout-grid" class="w-4 h-4"></i><span class="hide-collapsed">Executive Dashboard</span></div>
+
+            <nav class="flex-1 px-3 space-y-2">
+                <div id="tab-exec" onclick="switchTab('exec')" class="nav-item active flex items-center gap-3 px-4 py-3 rounded-xl"><i data-lucide="layout-grid" class="w-4 h-4"></i><span class="hide-collapsed">Executive Dashboard</span></div>
+                <div id="tab-priority" onclick="switchTab('priority')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl relative">
+                    <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i><span class="hide-collapsed">Priority Items</span>
+                    <span id="priorityBadge" class="hidden ml-auto bg-amber-500/10 text-amber-500 text-[10px] px-2 py-0.5 rounded-full font-bold">0</span>
+                </div>
             </nav>
+
             <div class="p-6">
                 <div class="hide-collapsed pt-4 border-t border-zinc-800/50">
-                    <div class="flex items-center justify-between mb-3"><span class="text-[10px] font-medium text-zinc-500">v3.1.5 Stable</span><div class="h-1.5 w-1.5 rounded-full bg-indigo-500"></div></div>
-                    <p class="text-[8px] text-zinc-600 font-medium uppercase tracking-tight whitespace-nowrap overflow-hidden">© 2024 Nivas Kunj. All rights reserved.</p>
+                    <div class="flex items-center justify-between mb-3"><span class="text-[10px] font-medium text-zinc-500">v3.2.3 Stable</span><div class="h-1.5 w-1.5 rounded-full bg-indigo-500"></div></div>
+                    <p class="text-[8px] text-zinc-600 font-medium uppercase tracking-tight">© 2025 Nivas Kunj. All rights reserved.</p>
                 </div>
             </div>
         </aside>
 
         <main class="flex flex-col overflow-hidden relative">
-            <header class="h-20 px-10 flex items-center justify-between shrink-0 bg-white/50 backdrop-blur-md">
-                <h2 class="text-xl font-bold text-zinc-900 tracking-tight">Lead Distribution</h2>
-                <div class="flex items-center gap-3">
+            <header class="h-20 px-10 flex items-center justify-between shrink-0 bg-white/50 backdrop-blur-md z-[60]">
+                <h2 id="viewTitle" class="text-xl font-bold text-zinc-900 tracking-tight">Lead Distribution</h2>
+                <div class="flex items-center gap-6">
                     <div class="flex items-center bg-zinc-100/50 border border-zinc-200 rounded-xl px-3 py-1.5 gap-2">
                         <input type="date" id="dateFrom" onchange="renderDashboard()" class="text-[10px] font-semibold outline-none bg-transparent text-zinc-600">
                         <div class="h-3 w-[1px] bg-zinc-300"></div>
                         <input type="date" id="dateTo" onchange="renderDashboard()" class="text-[10px] font-semibold outline-none bg-transparent text-zinc-600">
                         <button onclick="clearDates()" class="p-1 hover:text-indigo-600 text-zinc-400"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button>
                     </div>
-                    <button onclick="fetchAllData()" class="bg-zinc-900 text-white px-5 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-wider hover:bg-indigo-600 transition shadow-sm">Sync Assets</button>
+                    
+                    <div class="relative cursor-pointer group">
+                        <div onclick="toggleNotifPanel()" class="p-2 hover:bg-zinc-100 rounded-full transition relative">
+                            <i data-lucide="bell" class="w-5 h-5 text-zinc-400"></i>
+                            <div id="notifDot" class="notification-dot hidden"></div>
+                        </div>
+                        <div id="notifPanel" class="hidden absolute right-0 top-12 w-72 bg-white border border-zinc-200 rounded-2xl shadow-2xl p-4 z-[100]">
+                            <h4 class="text-[10px] font-bold text-zinc-400 uppercase mb-3 tracking-widest">Follow-up Alerts</h4>
+                            <div id="notifList" class="space-y-2 max-h-60 overflow-y-auto text-[11px]"></div>
+                        </div>
+                    </div>
+                    <button onclick="fetchAllData()" class="bg-zinc-900 text-white px-5 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-wider hover:bg-indigo-600 transition">Sync Assets</button>
                 </div>
             </header>
 
@@ -77,17 +93,17 @@
                 <div class="flex gap-3 px-6 mb-6">
                     <div class="relative flex-1">
                         <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 w-4 h-4"></i>
-                        <input type="text" id="searchInput" onkeyup="renderDashboard()" placeholder="Search lead identity..." class="w-full pl-11 pr-4 py-3.5 bg-white border border-zinc-200 rounded-2xl outline-none text-sm focus:ring-2 focus:ring-indigo-500/10">
+                        <input type="text" id="searchInput" onkeyup="renderDashboard()" placeholder="Search lead identity..." class="w-full pl-11 pr-4 py-3.5 bg-white border border-zinc-200 rounded-2xl outline-none text-sm">
                     </div>
                     <select id="statusFilter" onchange="renderDashboard()" class="bg-white border border-zinc-200 rounded-2xl px-6 py-3.5 text-xs font-bold text-zinc-600 outline-none"></select>
                 </div>
 
                 <div class="crm-grid px-10 py-3 mb-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-                    <div class="sort-header flex items-center gap-1" onclick="handleSort('customer_name')">Client Identity <i data-lucide="arrow-up-down" class="w-2.5 h-2.5"></i></div>
+                    <div class="sort-header" onclick="handleSort('customer_name')">Client Identity <i data-lucide="arrow-up-down" class="w-3 h-3"></i></div>
                     <div>Lifecycle</div>
                     <div>Interaction</div>
-                    <div class="sort-header flex items-center gap-1" onclick="handleSort('created_at')">Received <i data-lucide="arrow-up-down" class="w-2.5 h-2.5"></i></div>
-                    <div class="sort-header flex items-center gap-1" onclick="handleSort('source')">Origin <i data-lucide="arrow-up-down" class="w-2.5 h-2.5"></i></div>
+                    <div class="sort-header" onclick="handleSort('created_at')">Received <i data-lucide="arrow-up-down" class="w-3 h-3"></i></div>
+                    <div class="sort-header" onclick="handleSort('source')">Origin <i data-lucide="arrow-up-down" class="w-3 h-3"></i></div>
                     <div class="text-right">Operations</div>
                 </div>
                 <div id="leadTableBody"></div>
@@ -103,7 +119,7 @@
         </main>
     </div>
 
-    <div id="modal" class="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-6">
+    <div id="modal" class="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm hidden z-[200] flex items-center justify-center p-6">
         <div class="bg-white rounded-[32px] max-w-5xl w-full h-[82vh] overflow-hidden shadow-2xl flex flex-col">
             <div class="px-10 py-8 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/30">
                 <div class="flex items-center gap-5">
@@ -121,8 +137,7 @@
         const S_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndiaGN2Y3NkcGRhbmRheGlkbmxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NjMwMjksImV4cCI6MjA4MTUzOTAyOX0.n8R1OpFxilWbDfteODc-lyVF_qvntyRnJNVM3g9xCWs';
         const sb = supabase.createClient(S_URL, S_KEY);
 
-        let enquiries = [], details = [], statuses = [], comments = [], currentPage = 1, itemsPerPage = 8;
-        let sortCol = 'created_at', sortAsc = false;
+        let enquiries = [], details = [], statuses = [], comments = [], currentTab = 'exec', sortCol = 'created_at', sortAsc = false, currentPage = 1, itemsPerPage = 8;
 
         async function fetchAllData() {
             const [rEnq, rDet, rSta, rCom] = await Promise.all([
@@ -136,12 +151,18 @@
             const f = document.getElementById('statusFilter');
             f.innerHTML = '<option value="all">Pipeline: All</option>';
             statuses.forEach(s => f.innerHTML += `<option value="${s.status_id}">${s.status_details}</option>`);
+            
+            updatePriorityCount();
+            checkNotifications();
             renderDashboard();
         }
 
-        function handleSort(col) {
-            if (sortCol === col) sortAsc = !sortAsc;
-            else { sortCol = col; sortAsc = true; }
+        function switchTab(tab) {
+            currentTab = tab;
+            currentPage = 1;
+            document.getElementById('tab-exec').classList.toggle('active', tab === 'exec');
+            document.getElementById('tab-priority').classList.toggle('active', tab === 'priority');
+            document.getElementById('viewTitle').innerText = tab === 'exec' ? 'Lead Distribution' : 'Priority Expiry (Next 7 Days)';
             renderDashboard();
         }
 
@@ -150,136 +171,132 @@
             const filter = document.getElementById('statusFilter').value;
             const fromStr = document.getElementById('dateFrom').value;
             const toStr = document.getElementById('dateTo').value;
-
-            // Date Conversion Logic for Precision
+            
             const dateFrom = fromStr ? new Date(fromStr).setHours(0,0,0,0) : null;
             const dateTo = toStr ? new Date(toStr).setHours(23,59,59,999) : null;
+            const now = new Date();
+            const next7Days = new Date(); next7Days.setDate(now.getDate() + 7);
 
             let filtered = enquiries.filter(item => {
-                const s = (details.find(d => d.enquiry_id === item.id)?.status_id || 0).toString();
+                const det = details.find(d => d.enquiry_id === item.id) || {};
+                const s = (det.status_id || 0).toString();
                 const itemDate = new Date(item.created_at).getTime();
-
                 const matchSearch = item.customer_name.toLowerCase().includes(query) || item.email_id.toLowerCase().includes(query);
                 const matchStatus = filter === 'all' || s === filter;
-                
-                // Precision Date Filtering Logic
-                const matchDateFrom = !dateFrom || itemDate >= dateFrom;
-                const matchDateTo = !dateTo || itemDate <= dateTo;
+                const matchDate = (!dateFrom || itemDate >= dateFrom) && (!dateTo || itemDate <= dateTo);
 
-                // STRICT AND LOGIC
-                return matchSearch && matchStatus && matchDateFrom && matchDateTo;
-            });
-
-            // Sorting Logic
-            filtered.sort((a, b) => {
-                let valA = a[sortCol] || '', valB = b[sortCol] || '';
-                if (sortCol === 'created_at') {
-                    valA = new Date(valA).getTime();
-                    valB = new Date(valB).getTime();
+                if (currentTab === 'priority') {
+                    const expiry = item.expiry_at ? new Date(item.expiry_at) : null;
+                    return matchSearch && matchStatus && expiry && expiry >= now && expiry <= next7Days;
                 }
-                return sortAsc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+                return matchSearch && matchStatus && matchDate;
             });
+
+            filtered.sort((a,b) => sortAsc ? (a[sortCol] > b[sortCol] ? 1 : -1) : (a[sortCol] < b[sortCol] ? 1 : -1));
 
             const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
-            if (currentPage > totalPages) currentPage = 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+
+            document.getElementById('paginationInfo').innerText = `${currentPage} / ${totalPages}`;
+            document.getElementById('prevBtn').disabled = currentPage === 1;
+            document.getElementById('nextBtn').disabled = currentPage === totalPages;
 
             const paginated = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
-            document.getElementById('paginationInfo').innerText = `${currentPage} / ${totalPages}`;
-            
+
             document.getElementById('leadTableBody').innerHTML = paginated.map(item => {
                 const sObj = statuses.find(st => st.status_id === (details.find(d => d.enquiry_id === item.id)?.status_id)) || {status_details: 'NEW'};
-                const lastCom = comments.find(c => c.enquiry_id === item.id);
-                return `
-                    <div class="data-row">
-                        <div class="crm-grid">
-                            <div><div class="font-bold text-zinc-900 text-sm tracking-tight">${item.customer_name}</div><div class="mono text-zinc-400 mt-0.5">${item.email_id}</div></div>
-                            <div><span class="px-2 py-0.5 rounded border text-[9px] font-bold ${sObj.status_id === 4 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'}">${sObj.status_details.toUpperCase()}</span></div>
-                            <div class="text-[11px] font-semibold text-zinc-500">${lastCom ? getTimeAgo(lastCom.created_at) : 'Fresh'}</div>
-                            <div class="mono text-zinc-400">${new Date(item.created_at).toLocaleDateString('en-GB')}</div>
-                            <div class="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">${item.source || 'WEB'}</div>
-                            <div class="text-right"><button onclick="openLeadModal('${item.id}')" class="px-4 py-1.5 bg-zinc-900 text-white rounded-lg text-[10px] font-bold uppercase hover:bg-indigo-600 transition shadow-sm">Manage</button></div>
-                        </div>
-                    </div>
-                `;
+                const inter = currentTab === 'priority' ? `Exp: ${new Date(item.expiry_at).toLocaleDateString()}` : getTimeAgo(comments.find(c => c.enquiry_id === item.id)?.created_at);
+                
+                return `<div class="data-row"><div class="crm-grid">
+                    <div><div class="font-bold text-zinc-900 text-sm">${item.customer_name}</div><div class="mono text-zinc-400 mt-0.5">${item.email_id}</div></div>
+                    <div><span class="px-2 py-0.5 rounded border text-[9px] font-bold bg-indigo-50 text-indigo-600">${sObj.status_details}</span></div>
+                    <div class="text-[11px] font-semibold text-zinc-500">${inter}</div>
+                    <div class="mono text-zinc-400">${new Date(item.created_at).toLocaleDateString()}</div>
+                    <div class="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">${item.source || 'WEB'}</div>
+                    <div class="text-right"><button onclick="openLeadModal('${item.id}')" class="px-4 py-1.5 bg-zinc-900 text-white rounded-lg text-[10px] font-bold uppercase hover:bg-indigo-600 transition">Manage</button></div>
+                </div></div>`;
             }).join('');
             lucide.createIcons();
         }
 
-        async function openLeadModal(id) {
+        function openLeadModal(id) {
             const lead = enquiries.find(e => e.id === id);
-            const sId = details.find(d => d.enquiry_id === id)?.status_id || 0;
+            const det = details.find(d => d.enquiry_id === id) || {};
             const leadComms = comments.filter(c => c.enquiry_id === id);
             
             document.getElementById('modalName').innerText = lead.customer_name;
             const badge = document.getElementById('modalBadge');
-            badge.innerText = statuses.find(s => s.status_id === sId)?.status_details || 'NEW';
-            badge.className = `px-3 py-1 rounded-lg text-[9px] font-bold border ${sId === 4 ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'}`;
-
+            badge.innerText = statuses.find(s => s.status_id === det.status_id)?.status_details || 'NEW';
+            
             document.getElementById('modalContent').innerHTML = `
                 <div class="space-y-8">
-                    <div class="bg-zinc-900 text-white p-10 rounded-[32px] shadow-xl relative overflow-hidden">
-                        <h4 class="text-[9px] font-bold text-indigo-400 uppercase mb-4 tracking-widest">Inquiry Brief</h4>
-                        <p class="text-xl font-medium leading-relaxed italic">"${lead.query_data}"</p>
-                    </div>
+                    <div class="bg-zinc-900 text-white p-10 rounded-[32px]"><h4 class="text-[9px] font-bold text-indigo-400 uppercase mb-4">Inquiry</h4><p class="text-xl italic">"${lead.query_data}"</p></div>
+                    ${currentTab === 'priority' ? `<div class="p-6 bg-amber-50 rounded-2xl border border-amber-100"><label class="block text-[10px] font-bold text-amber-700 uppercase mb-2">Set Expiry (ETA Update)</label><div class="flex gap-2">
+                        <input type="datetime-local" id="etaInput" value="${lead.expiry_at ? lead.expiry_at.slice(0,16) : ''}" class="flex-1 bg-white border border-amber-200 rounded-xl p-3 text-xs">
+                        <button onclick="saveETA('${id}')" class="bg-amber-600 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase">Update Expiry</button>
+                    </div></div>` : ''}
                     <div class="grid grid-cols-2 gap-3">
-                        <a href="https://wa.me/${lead.phone_number.replace(/\D/g,'')}" target="_blank" class="flex items-center justify-center gap-3 py-4 bg-emerald-600 text-white rounded-2xl font-bold text-xs uppercase hover:bg-emerald-700 transition"><i data-lucide="message-circle" class="w-4 h-4"></i> WhatsApp</a>
-                        <a href="mailto:${lead.email_id}" class="flex items-center justify-center gap-3 py-4 bg-indigo-600 text-white rounded-2xl font-bold text-xs uppercase hover:bg-indigo-700 transition"><i data-lucide="mail" class="w-4 h-4"></i> Email</a>
+                        <a href="https://wa.me/${lead.phone_number.replace(/\D/g,'')}" target="_blank" class="flex items-center justify-center gap-3 py-4 bg-emerald-600 text-white rounded-2xl font-bold text-xs uppercase"><i data-lucide="message-circle" class="w-4 h-4"></i> WhatsApp</a>
+                        <a href="mailto:${lead.email_id}" class="flex items-center justify-center gap-3 py-4 bg-indigo-600 text-white rounded-2xl font-bold text-xs uppercase"><i data-lucide="mail" class="w-4 h-4"></i> Email</a>
                     </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-zinc-400 uppercase mb-3 tracking-widest">Pipeline Stage</label>
-                        <select onchange="handleStatusUpdate('${id}', this.value)" class="w-full bg-zinc-50 border border-zinc-200 rounded-2xl p-5 text-sm font-bold text-zinc-800 outline-none">
-                            <option value="">Move Stage...</option>
-                            ${statuses.map(opt => `<option value="${opt.status_id}" ${opt.status_id === sId ? 'selected' : ''}>${opt.status_details.toUpperCase()}</option>`).join('')}
+                    <div><label class="block text-[10px] font-bold text-zinc-400 uppercase mb-3">Status</label>
+                        <select onchange="handleStatusUpdate('${id}', this.value)" class="w-full bg-zinc-50 border border-zinc-200 rounded-2xl p-5 text-sm font-bold">
+                            <option value="">Move Stage...</option>${statuses.map(s => `<option value="${s.status_id}" ${s.status_id === det.status_id ? 'selected' : ''}>${s.status_details.toUpperCase()}</option>`).join('')}
                         </select>
                     </div>
                 </div>
                 <div class="flex flex-col bg-zinc-50 rounded-[32px] p-10 border border-zinc-100 h-full">
-                    <h4 class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-6 px-1">Activity Log</h4>
-                    <div class="flex-1 overflow-y-auto space-y-3 mb-6 pr-2">
-                        ${leadComms.map(c => `<div class="p-5 bg-white rounded-2xl border border-zinc-200 shadow-sm"><p class="text-xs font-semibold text-zinc-700">${c.comments}</p><span class="mono text-zinc-400 mt-2 block">${new Date(c.created_at).toLocaleString()}</span></div>`).join('') || '<div class="text-center py-20 text-zinc-300 italic text-xs">No entries found.</div>'}
+                    <h4 class="text-[10px] font-bold text-zinc-400 uppercase mb-6">Activity Log</h4>
+                    <div class="flex-1 overflow-y-auto space-y-3 mb-6">${leadComms.map(c => `<div class="p-5 bg-white rounded-2xl border border-zinc-200 text-xs font-semibold">${c.comments}</div>`).join('')}</div>
+                    <div class="flex gap-2 bg-white p-2 rounded-2xl border border-zinc-200">
+                        <input id="noteInput" type="text" placeholder="Add note..." class="flex-1 px-4 outline-none text-xs"><button onclick="handleCommentSave('${id}')" class="bg-zinc-900 text-white px-6 py-2 rounded-xl text-[10px] font-bold">Update</button>
                     </div>
-                    <div class="flex gap-2 bg-white p-2 rounded-2xl shadow-xl border border-zinc-200">
-                        <input id="noteInput" type="text" placeholder="Add a new note..." class="flex-1 px-4 outline-none font-semibold text-xs">
-                        <button onclick="handleCommentSave('${id}')" class="bg-zinc-900 text-white px-6 py-2 rounded-xl font-bold text-[10px] uppercase hover:bg-indigo-600">Post Log</button>
-                    </div>
-                </div>
-            `;
+                </div>`;
             document.getElementById('modal').classList.remove('hidden');
             lucide.createIcons();
         }
 
-        async function handleStatusUpdate(eId, sId) {
-            if(!sId) return;
-            await sb.from('enquiry_details').upsert({ enquiry_id: eId, status_id: parseInt(sId), updated_on: new Date().toISOString() }, { onConflict: 'enquiry_id' });
+        async function saveETA(eId) { 
+            const val = document.getElementById('etaInput').value; 
+            // New Logic: Update column expiry_at in table raw_enquiries
+            await sb.from('raw_enquiries').update({ expiry_at: val }).eq('id', eId);
+            alert("Expiry Updated Successfully."); 
             fetchAllData(); 
         }
 
-        async function handleCommentSave(eId) {
-            const val = document.getElementById('noteInput').value;
-            if(!val) return;
-            await sb.from('enquiry_comments').insert([{ enquiry_id: eId, comments: val }]);
-            await fetchAllData();
-            openLeadModal(eId);
+        async function handleStatusUpdate(eId, sId) { await sb.from('enquiry_details').upsert({ enquiry_id: eId, status_id: parseInt(sId) }, { onConflict: 'enquiry_id' }); fetchAllData(); }
+        async function handleCommentSave(eId) { const val = document.getElementById('noteInput').value; if(!val) return; await sb.from('enquiry_comments').insert([{ enquiry_id: eId, comments: val }]); await fetchAllData(); openLeadModal(eId); }
+        function checkNotifications() {
+            const now = new Date(); 
+            // Notifications are based on expiry_at now
+            const alerts = enquiries.filter(e => e.expiry_at && new Date(e.expiry_at) <= now);
+            const dot = document.getElementById('notifDot');
+            if(alerts.length > 0) {
+                dot.classList.remove('hidden');
+                document.getElementById('notifList').innerHTML = alerts.map(a => `<div class="p-3 bg-red-50 text-red-700 rounded-xl border border-red-100 font-bold">Alert: ${a.customer_name} expired</div>`).join('');
+            } else { dot.classList.add('hidden'); document.getElementById('notifList').innerHTML = '<div class="text-zinc-400 italic p-2 text-center">No alerts</div>'; }
         }
-
-        function getTimeAgo(dateString) {
-            if (!dateString) return 'Pending';
-            const diff = Math.floor((new Date() - new Date(dateString)) / 1000);
-            if (diff < 3600) return Math.floor(diff/60) + 'm ago';
-            if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
-            return Math.floor(diff/86400) + 'd ago';
+        function updatePriorityCount() {
+            const now = new Date(); const next7 = new Date(); next7.setDate(now.getDate() + 7);
+            const count = enquiries.filter(item => { const exp = item.expiry_at ? new Date(item.expiry_at) : null; return exp && exp >= now && exp <= next7; }).length;
+            const b = document.getElementById('priorityBadge');
+            if(count > 0) { b.innerText = count; b.classList.remove('hidden'); } else b.classList.add('hidden');
         }
-
-        function toggleSidebar() {
-            const s = document.getElementById('sidebar');
-            const icon = document.getElementById('toggleIcon');
-            s.classList.toggle('collapsed');
-            icon.style.transform = s.classList.contains('collapsed') ? 'rotate(180deg)' : 'rotate(0deg)';
-        }
-
-        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
+        function toggleNotifPanel() { document.getElementById('notifPanel').classList.toggle('hidden'); }
         function clearDates() { document.getElementById('dateFrom').value = ''; document.getElementById('dateTo').value = ''; renderDashboard(); }
-        function changePage(dir) { currentPage += dir; renderDashboard(); }
+        function handleSort(c) { if(sortCol===c) sortAsc=!sortAsc; else {sortCol=c; sortAsc=true;} renderDashboard(); }
+        function changePage(dir) { 
+            const total = Math.ceil(enquiries.length / itemsPerPage);
+            const next = currentPage + dir;
+            if (next >= 1 && next <= total) {
+                currentPage = next;
+                renderDashboard();
+            }
+        }
+        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+        function getTimeAgo(d) { if(!d) return 'Fresh'; const diff = Math.floor((new Date()-new Date(d))/1000); if(diff<3600) return Math.floor(diff/60)+'m ago'; return Math.floor(diff/86400)+'d ago'; }
         window.onload = fetchAllData;
     </script>
 </body>
