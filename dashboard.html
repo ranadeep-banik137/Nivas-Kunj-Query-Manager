@@ -8,59 +8,76 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap');
         
-        :root { --sidebar: #0a0a0b; --accent: #6366f1; }
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color: #1a1a1a; overflow: hidden; }
+        :root { --sidebar: #09090b; --accent: #6366f1; --surface: #ffffff; }
+        body { font-family: 'Inter', sans-serif; background: #fcfcfd; color: #09090b; overflow: hidden; }
+        h1, h2, .font-heading { font-family: 'Plus Jakarta Sans', sans-serif; }
 
         .app-layout { display: grid; grid-template-columns: auto 1fr; height: 100vh; width: 100vw; }
         
-        /* Unique Sidebar Design */
+        /* Sidebar Styling */
         .sidebar { 
-            width: 280px; 
-            background: var(--sidebar); 
+            width: 260px; background: var(--sidebar); 
             transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
-            display: flex; flex-direction: column; 
-            border-right: 1px solid #27272a;
+            display: flex; flex-direction: column; border-right: 1px solid #18181b;
         }
-        .sidebar.collapsed { width: 88px; }
+        .sidebar.collapsed { width: 80px; }
         
-        /* Floating Toggle Button */
+        /* Floating Toggle */
         .toggle-trigger {
-            position: absolute; right: -14px; top: 48px;
-            width: 28px; height: 28px; background: var(--accent);
-            border-radius: 8px; display: flex; align-items: center; justify-content: center;
-            color: white; cursor: pointer; z-index: 100;
-            box-shadow: 0 4px 10px rgba(99, 102, 241, 0.4);
+            position: absolute; right: -12px; top: 44px;
+            width: 24px; height: 24px; background: #27272a;
+            border-radius: 6px; display: flex; align-items: center; justify-content: center;
+            color: #a1a1aa; cursor: pointer; z-index: 100; border: 1px solid #3f3f46;
         }
+        .toggle-trigger:hover { color: white; background: var(--accent); border-color: var(--accent); }
 
-        /* Live Pulse Indicator */
-        .pulse { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; position: relative; }
+        /* Navigation Font Adjustment */
+        .nav-item {
+            font-size: 13px; font-weight: 500; letter-spacing: -0.01em;
+            color: #71717a; transition: all 0.2s;
+        }
+        .nav-item.active { color: white; background: #18181b; }
+
+        /* Live Indicator */
+        .pulse { width: 7px; height: 7px; background: #10b981; border-radius: 50%; position: relative; }
         .pulse::after { 
             content: ""; position: absolute; inset: 0; border-radius: 50%;
-            background: #22c55e; animation: pulse-ring 2s infinite; 
+            background: #10b981; animation: pulse-ring 2s infinite; 
         }
         @keyframes pulse-ring { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(3); opacity: 0; } }
 
         /* Row Styling */
         .crm-grid {
             display: grid;
-            grid-template-columns: 1.8fr 1fr 1.2fr 1fr 0.8fr 100px;
-            gap: 1.5rem; align-items: center; padding: 0.75rem 2rem;
+            grid-template-columns: 1.8fr 1fr 1fr 0.8fr 0.8fr 110px;
+            gap: 1.5rem; align-items: center; padding: 0.85rem 1.5rem;
         }
         .data-row {
-            margin: 0 1.5rem 0.75rem 1.5rem; border-radius: 16px;
-            background: white; border: 1px solid #f1f1f1;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            margin: 0 1.5rem 0.6rem 1.5rem; border-radius: 12px;
+            background: white; border: 1px solid #f1f1f4;
+            transition: all 0.2s;
         }
-        .data-row:hover { 
-            border-color: #e2e8f0; transform: translateY(-2px);
-            box-shadow: 0 12px 24px -10px rgba(0,0,0,0.05);
-        }
+        .data-row:hover { border-color: #e4e4e7; background: #fdfdfd; transform: translateX(4px); }
 
-        /* Mono for Dates/ID */
+        /* Creative Pagination Widget */
+        .pagination-widget {
+            position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+            background: #09090b; padding: 8px 12px; border-radius: 20px;
+            display: flex; align-items: center; gap: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+            border: 1px solid #27272a; z-index: 40;
+        }
+        .page-btn {
+            height: 32px; width: 32px; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            color: #a1a1aa; transition: 0.2s;
+        }
+        .page-btn:hover:not(:disabled) { background: #27272a; color: white; }
+        .page-btn:disabled { opacity: 0.2; cursor: not-allowed; }
+
         .mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
-
         .sidebar.collapsed .hide-collapsed { display: none; }
     </style>
 </head>
@@ -69,99 +86,99 @@
     <div class="app-layout">
         <aside id="sidebar" class="sidebar relative">
             <div class="toggle-trigger" onclick="toggleSidebar()">
-                <i data-lucide="chevron-left" id="toggleIcon" class="w-4 h-4"></i>
+                <i data-lucide="chevron-left" id="toggleIcon" class="w-3.5 h-3.5"></i>
             </div>
 
-            <div class="p-8 pb-10">
-                <div class="flex items-center gap-4">
-                    <div class="h-10 w-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white shrink-0">
-                        <i data-lucide="zap" class="w-6 h-6"></i>
+            <div class="p-6 h-28 flex items-center">
+                <div class="flex items-center gap-3">
+                    <div class="h-9 w-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white shrink-0">
+                        <i data-lucide="command" class="w-5 h-5"></i>
                     </div>
-                    <div class="hide-collapsed overflow-hidden">
-                        <h1 class="text-white font-extrabold text-lg leading-none tracking-tight">Nivas Kunj</h1>
-                        <div class="flex items-center gap-2 mt-2">
+                    <div class="hide-collapsed">
+                        <h1 class="text-white font-bold text-base tracking-tight leading-none">Nivas Kunj</h1>
+                        <div class="flex items-center gap-2 mt-1.5">
                             <div class="pulse"></div>
-                            <span class="text-[9px] text-zinc-500 font-bold uppercase tracking-[0.1em]">Live Management</span>
+                            <span class="text-[9px] text-zinc-500 font-semibold uppercase tracking-widest">Customer Solutions</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <nav class="flex-1 px-4 space-y-1">
-                <div class="flex items-center gap-4 px-5 py-4 bg-indigo-600/10 text-indigo-400 rounded-xl border border-indigo-500/20 font-bold">
-                    <i data-lucide="layout-grid" class="w-5 h-5"></i>
+            <nav class="flex-1 px-3 space-y-1">
+                <div class="nav-item active flex items-center gap-3 px-4 py-3 rounded-xl border border-white/5">
+                    <i data-lucide="layout-grid" class="w-4 h-4"></i>
                     <span class="hide-collapsed">Executive Dashboard</span>
                 </div>
             </nav>
 
             <div class="p-6">
-                <div class="p-4 bg-zinc-900/50 rounded-2xl border border-zinc-800 hide-collapsed">
-                    <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">System Health</p>
-                    <p class="text-xs text-zinc-300 mt-1">All protocols active</p>
+                <div class="hide-collapsed pt-4 border-t border-zinc-800/50">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-medium text-zinc-500">v3.1.0 Stable</span>
+                        <div class="h-1.5 w-1.5 rounded-full bg-indigo-500"></div>
+                    </div>
                 </div>
             </div>
         </aside>
 
-        <main class="flex flex-col overflow-hidden">
-            <header class="h-24 px-10 flex items-center justify-between shrink-0">
+        <main class="flex flex-col overflow-hidden relative">
+            <header class="h-20 px-10 flex items-center justify-between shrink-0 bg-white/50 backdrop-blur-md">
                 <div>
-                    <h2 class="text-2xl font-black text-zinc-900">Enquiry Workflow</h2>
-                    <p class="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">Global lead distribution</p>
+                    <h2 class="text-xl font-bold text-zinc-900 tracking-tight">Lead Distribution</h2>
                 </div>
                 
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center bg-white border border-zinc-200 rounded-xl px-4 py-2 gap-3 shadow-sm">
-                        <i data-lucide="calendar" class="w-4 h-4 text-zinc-400"></i>
-                        <input type="date" id="dateFrom" onchange="renderDashboard()" class="text-[11px] font-bold outline-none bg-transparent">
-                        <span class="text-zinc-300 font-bold text-[10px]">TO</span>
-                        <input type="date" id="dateTo" onchange="renderDashboard()" class="text-[11px] font-bold outline-none bg-transparent">
-                        <button onclick="clearDates()" class="ml-2 p-1 hover:bg-zinc-100 rounded text-zinc-400"><i data-lucide="refresh-ccw" class="w-3.5 h-3.5"></i></button>
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center bg-zinc-100/50 border border-zinc-200 rounded-xl px-3 py-1.5 gap-2">
+                        <input type="date" id="dateFrom" onchange="renderDashboard()" class="text-[10px] font-semibold outline-none bg-transparent text-zinc-600">
+                        <div class="h-3 w-[1px] bg-zinc-300"></div>
+                        <input type="date" id="dateTo" onchange="renderDashboard()" class="text-[10px] font-semibold outline-none bg-transparent text-zinc-600">
+                        <button onclick="clearDates()" class="p-1 hover:text-indigo-600 text-zinc-400 transition"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button>
                     </div>
-                    <button onclick="fetchAllData()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-indigo-700 transition">Sync Assets</button>
+                    <button onclick="fetchAllData()" class="bg-zinc-900 text-white px-5 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-wider hover:bg-indigo-600 transition shadow-sm">Sync Assets</button>
                 </div>
             </header>
 
-            <div class="flex-1 overflow-y-auto px-4 custom-scrollbar">
-                <div class="flex gap-4 px-6 mb-8 mt-2">
-                    <div class="relative flex-1 group">
-                        <i data-lucide="search" class="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-indigo-600 transition w-5 h-5"></i>
-                        <input type="text" id="searchInput" onkeyup="renderDashboard()" placeholder="Search leads by name, email or digital footprint..." class="w-full pl-14 pr-6 py-5 bg-white border border-zinc-200 rounded-[20px] outline-none focus:border-indigo-500 font-medium">
+            <div class="flex-1 overflow-y-auto px-4 pb-32">
+                <div class="flex gap-3 px-6 mb-6">
+                    <div class="relative flex-1">
+                        <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 w-4 h-4"></i>
+                        <input type="text" id="searchInput" onkeyup="renderDashboard()" placeholder="Search by name or email..." class="w-full pl-11 pr-4 py-3.5 bg-white border border-zinc-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500/10 text-sm transition-all">
                     </div>
-                    <select id="statusFilter" onchange="renderDashboard()" class="bg-white border border-zinc-200 rounded-[20px] px-8 py-5 text-sm font-bold text-zinc-700 outline-none cursor-pointer"></select>
+                    <select id="statusFilter" onchange="renderDashboard()" class="bg-white border border-zinc-200 rounded-2xl px-6 py-3.5 text-xs font-bold text-zinc-600 outline-none"></select>
                 </div>
 
-                <div class="crm-grid px-12 py-4 mb-2 text-[10px] font-black text-zinc-400 uppercase tracking-[0.15em]">
-                    <div>Lead Identity</div>
-                    <div>Lifecycle Stage</div>
-                    <div>Interaction Log</div>
-                    <div>Date Received</div>
+                <div class="crm-grid px-10 py-3 mb-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                    <div>Client Identity</div>
+                    <div>Lifecycle</div>
+                    <div>Interaction</div>
+                    <div>Received</div>
                     <div>Origin</div>
-                    <div class="text-center">Operations</div>
+                    <div class="text-right">Operations</div>
                 </div>
 
                 <div id="leadTableBody"></div>
+            </div>
 
-                <div class="m-8 flex justify-between items-center bg-zinc-900 text-white p-6 rounded-3xl">
-                    <p id="paginationInfo" class="text-[10px] font-bold uppercase tracking-widest opacity-60"></p>
-                    <div class="flex gap-3">
-                        <button onclick="changePage(-1)" id="prevBtn" class="px-5 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-white/10 border border-white/10">Back</button>
-                        <button onclick="changePage(1)" id="nextBtn" class="px-5 py-2 bg-indigo-500 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-400">Next Step</button>
-                    </div>
-                </div>
+            <div class="pagination-widget">
+                <button onclick="changePage(-1)" id="prevBtn" class="page-btn"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                <div class="h-4 w-[1px] bg-zinc-800"></div>
+                <span id="paginationInfo" class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest px-2"></span>
+                <div class="h-4 w-[1px] bg-zinc-800"></div>
+                <button onclick="changePage(1)" id="nextBtn" class="page-btn"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
             </div>
         </main>
     </div>
 
-    <div id="modal" class="fixed inset-0 bg-zinc-950/90 backdrop-blur-md hidden z-[100] flex items-center justify-center p-6">
-        <div class="bg-white rounded-[40px] max-w-6xl w-full h-[88vh] overflow-hidden shadow-2xl flex flex-col">
-            <div class="px-12 py-10 border-b border-zinc-100 flex justify-between items-center">
-                <div class="flex items-center gap-6">
-                    <div id="modalBadge" class="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border"></div>
-                    <h2 class="text-4xl font-black text-zinc-900 tracking-tight" id="modalName"></h2>
+    <div id="modal" class="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-6">
+        <div class="bg-white rounded-[32px] max-w-5xl w-full h-[82vh] overflow-hidden shadow-2xl flex flex-col">
+            <div class="px-10 py-8 border-b border-zinc-100 flex justify-between items-center">
+                <div class="flex items-center gap-5">
+                    <div id="modalBadge" class="px-3 py-1 rounded-lg text-[9px] font-bold border"></div>
+                    <h2 class="text-2xl font-bold text-zinc-900" id="modalName"></h2>
                 </div>
-                <button onclick="closeModal()" class="h-14 w-14 bg-zinc-50 rounded-2xl hover:bg-red-50 hover:text-red-500 transition flex items-center justify-center"><i data-lucide="x" class="w-6 h-6"></i></button>
+                <button onclick="closeModal()" class="p-2 hover:bg-zinc-100 rounded-xl transition"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
-            <div id="modalContent" class="p-12 overflow-y-auto flex-1 grid grid-cols-1 lg:grid-cols-2 gap-16"></div>
+            <div id="modalContent" class="p-10 overflow-y-auto flex-1 grid grid-cols-1 lg:grid-cols-2 gap-12"></div>
         </div>
     </div>
 
@@ -182,13 +199,13 @@
             enquiries = rEnq.data || []; details = rDet.data || []; statuses = rSta.data || []; comments = rCom.data || [];
             
             const f = document.getElementById('statusFilter');
-            f.innerHTML = '<option value="all">Lifecycle: All Stages</option>';
+            f.innerHTML = '<option value="all">Pipeline: All</option>';
             statuses.forEach(s => f.innerHTML += `<option value="${s.status_id}">${s.status_details}</option>`);
             renderDashboard();
         }
 
         function getTimeAgo(dateString) {
-            if (!dateString) return 'Inert';
+            if (!dateString) return 'Pending';
             const diff = Math.floor((new Date() - new Date(dateString)) / 1000);
             if (diff < 3600) return Math.floor(diff/60) + 'm ago';
             if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
@@ -211,7 +228,7 @@
             });
 
             const paginated = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
-            document.getElementById('paginationInfo').innerText = `Batch ${currentPage} / Total ${filtered.length} Leads`;
+            document.getElementById('paginationInfo').innerText = `${currentPage} / ${Math.ceil(filtered.length / itemsPerPage) || 1}`;
             
             document.getElementById('leadTableBody').innerHTML = paginated.map(item => {
                 const sObj = statuses.find(st => st.status_id === (details.find(d => d.enquiry_id === item.id)?.status_id)) || {status_details: 'NEW'};
@@ -219,20 +236,12 @@
                 return `
                     <div class="data-row">
                         <div class="crm-grid">
-                            <div>
-                                <div class="font-bold text-zinc-900 text-sm tracking-tight">${item.customer_name}</div>
-                                <div class="mono text-zinc-400 mt-0.5">${item.email_id}</div>
-                            </div>
-                            <div><span class="px-3 py-1 rounded-lg border text-[9px] font-black ${sObj.status_id === 4 ? 'bg-green-50 text-green-600 border-green-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'}">${sObj.status_details.toUpperCase()}</span></div>
-                            <div class="flex items-center gap-2">
-                                <div class="h-1.5 w-1.5 rounded-full ${lastCom ? 'bg-indigo-500' : 'bg-zinc-200'}"></div>
-                                <div class="text-[11px] font-bold text-zinc-500">${getTimeAgo(lastCom?.created_at)}</div>
-                            </div>
-                            <div class="mono text-zinc-500">${new Date(item.created_at).toLocaleDateString('en-GB')}</div>
-                            <div class="text-[10px] font-black text-indigo-400 tracking-widest uppercase">${item.source || 'WEB'}</div>
-                            <div class="text-center">
-                                <button onclick="openLeadModal('${item.id}')" class="px-5 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition shadow-lg shadow-indigo-500/10">Manage</button>
-                            </div>
+                            <div><div class="font-bold text-zinc-900 text-sm tracking-tight">${item.customer_name}</div><div class="mono text-zinc-400 mt-0.5">${item.email_id}</div></div>
+                            <div><span class="px-2 py-0.5 rounded border text-[9px] font-bold ${sObj.status_id === 4 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'}">${sObj.status_details.toUpperCase()}</span></div>
+                            <div class="text-[11px] font-semibold text-zinc-500">${getTimeAgo(lastCom?.created_at)}</div>
+                            <div class="mono text-zinc-400">${new Date(item.created_at).toLocaleDateString('en-GB')}</div>
+                            <div class="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">${item.source || 'WEB'}</div>
+                            <div class="text-right"><button onclick="openLeadModal('${item.id}')" class="px-4 py-1.5 bg-zinc-900 text-white rounded-lg text-[10px] font-bold uppercase hover:bg-indigo-600 transition">Manage</button></div>
                         </div>
                     </div>
                 `;
@@ -248,35 +257,34 @@
             document.getElementById('modalName').innerText = lead.customer_name;
             const badge = document.getElementById('modalBadge');
             badge.innerText = statuses.find(s => s.status_id === sId)?.status_details || 'FRESH';
-            badge.className = `px-4 py-1.5 rounded-full text-[10px] font-black border ${sId === 4 ? 'bg-green-50 text-green-600' : 'bg-indigo-50 text-indigo-600'}`;
+            badge.className = `px-3 py-1 rounded-lg text-[9px] font-bold border ${sId === 4 ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'}`;
 
             document.getElementById('modalContent').innerHTML = `
-                <div class="space-y-10">
-                    <div class="bg-indigo-900 text-white p-12 rounded-[40px] shadow-2xl relative overflow-hidden">
-                        <i data-lucide="mail" class="absolute right-[-20px] bottom-[-20px] w-48 h-48 opacity-10 rotate-12"></i>
-                        <h4 class="text-[10px] font-black text-indigo-400 uppercase mb-4 tracking-widest">Client Message</h4>
-                        <p class="text-2xl font-medium italic leading-snug">"${lead.query_data}"</p>
+                <div class="space-y-8">
+                    <div class="bg-zinc-900 text-white p-10 rounded-[32px] relative overflow-hidden">
+                        <h4 class="text-[9px] font-bold text-indigo-400 uppercase mb-4 tracking-widest">Client Brief</h4>
+                        <p class="text-xl font-medium leading-relaxed italic">"${lead.query_data}"</p>
                     </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <a href="https://wa.me/${lead.phone_number.replace(/\D/g,'')}" target="_blank" class="flex items-center justify-center gap-3 py-6 bg-green-600 text-white rounded-3xl font-black text-xs uppercase hover:bg-green-700 transition shadow-lg shadow-green-500/20"><i data-lucide="message-circle"></i> WhatsApp Now</a>
-                        <a href="mailto:${lead.email_id}" class="flex items-center justify-center gap-3 py-6 bg-indigo-600 text-white rounded-3xl font-black text-xs uppercase hover:bg-indigo-700 transition shadow-lg shadow-indigo-500/20"><i data-lucide="mail"></i> Send Email</a>
+                    <div class="grid grid-cols-2 gap-3">
+                        <a href="https://wa.me/${lead.phone_number.replace(/\D/g,'')}" target="_blank" class="flex items-center justify-center gap-3 py-4 bg-emerald-600 text-white rounded-2xl font-bold text-xs uppercase hover:bg-emerald-700 transition shadow-lg shadow-emerald-500/10"><i data-lucide="message-circle" class="w-4 h-4"></i> WhatsApp</a>
+                        <a href="mailto:${lead.email_id}" class="flex items-center justify-center gap-3 py-4 bg-indigo-600 text-white rounded-2xl font-bold text-xs uppercase hover:bg-indigo-700 transition shadow-lg shadow-indigo-500/10"><i data-lucide="mail" class="w-4 h-4"></i> Email</a>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-black text-zinc-400 uppercase mb-4 tracking-widest">Update Lifecycle</label>
-                        <select onchange="handleStatusUpdate('${id}', this.value)" class="w-full bg-zinc-50 border-2 border-zinc-100 rounded-3xl p-6 text-sm font-bold text-zinc-800 outline-none">
-                            <option value="">Move to Stage...</option>
+                        <label class="block text-[10px] font-bold text-zinc-400 uppercase mb-3 tracking-widest px-1">Lead Stage</label>
+                        <select onchange="handleStatusUpdate('${id}', this.value)" class="w-full bg-zinc-50 border border-zinc-200 rounded-2xl p-5 text-sm font-bold text-zinc-800 outline-none">
+                            <option value="">Choose Stage...</option>
                             ${statuses.map(opt => `<option value="${opt.status_id}" ${opt.status_id === sId ? 'selected' : ''}>${opt.status_details.toUpperCase()}</option>`).join('')}
                         </select>
                     </div>
                 </div>
-                <div class="flex flex-col bg-zinc-50 rounded-[40px] p-12 border border-zinc-100">
-                    <h4 class="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-6">Activity Timeline</h4>
-                    <div class="flex-1 overflow-y-auto space-y-4 mb-6 pr-4">
-                        ${leadComms.map(c => `<div class="p-6 bg-white rounded-3xl border border-zinc-100 shadow-sm"><p class="text-sm font-bold text-zinc-700">${c.comments}</p><span class="mono text-zinc-400 mt-3 block">${new Date(c.created_at).toLocaleString()}</span></div>`).join('') || '<div class="text-center py-20 text-zinc-300 italic">No historical logs.</div>'}
+                <div class="flex flex-col bg-zinc-50 rounded-[32px] p-10 border border-zinc-100">
+                    <h4 class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-6 px-1">Log Activity</h4>
+                    <div class="flex-1 overflow-y-auto space-y-3 mb-6 pr-2">
+                        ${leadComms.map(c => `<div class="p-5 bg-white rounded-2xl border border-zinc-200 shadow-sm"><p class="text-xs font-semibold text-zinc-700">${c.comments}</p><span class="mono text-zinc-400 mt-2 block">${new Date(c.created_at).toLocaleString()}</span></div>`).join('') || '<div class="text-center py-20 text-zinc-300 italic text-xs">No historical activity.</div>'}
                     </div>
-                    <div class="flex gap-3 bg-white p-3 rounded-3xl shadow-xl border border-zinc-100">
-                        <input id="noteInput" type="text" placeholder="Update activity..." class="flex-1 px-4 outline-none font-bold text-sm">
-                        <button onclick="handleCommentSave('${id}')" class="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase shadow-lg shadow-indigo-500/20">Log</button>
+                    <div class="flex gap-2 bg-white p-2 rounded-2xl shadow-xl border border-zinc-200">
+                        <input id="noteInput" type="text" placeholder="Update log..." class="flex-1 px-4 outline-none font-semibold text-xs">
+                        <button onclick="handleCommentSave('${id}')" class="bg-zinc-900 text-white px-6 py-2 rounded-xl font-bold text-[10px] uppercase">Update</button>
                     </div>
                 </div>
             `;
