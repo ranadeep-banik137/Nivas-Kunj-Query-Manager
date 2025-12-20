@@ -92,7 +92,7 @@
 
             <div class="p-6 border-t border-zinc-800/50">
                 <div class="flex items-center justify-between mb-3"><span class="text-[10px] font-medium text-zinc-500">v3.2.6 Stable</span><div class="h-1.5 w-1.5 rounded-full bg-indigo-500"></div></div>
-                    <p class="text-[8px] text-zinc-600 font-medium uppercase tracking-tight whitespace-nowrap overflow-hidden">© 2025 Nivas Kunj. All rights reserved. </p>
+                    <p class="text-[8px] text-zinc-600 font-medium uppercase tracking-tight whitespace-nowrap overflow-hidden">© 2025 Nivas Kunj.  All rights reserved. </p>
             </div>
         </aside>
 
@@ -318,57 +318,54 @@
             const lead = enquiries.find(e => e.id === id);
             const det = details.find(d => d.enquiry_id === id) || {};
             const leadComms = comments.filter(c => c.enquiry_id === id);
-            
             document.getElementById('modalName').innerText = lead.customer_name;
             document.getElementById('modalBadge').innerText = statuses.find(s => s.status_id === det.status_id)?.status_details || 'NEW';
             
+            // Logic for conditional WhatsApp button
+            const whatsappButton = lead.whatsapp_updates === true || lead.whatsapp_updates === 'true' 
+                ? `<a href="https://wa.me/${lead.phone_number.replace(/\D/g,'')}" target="_blank" class="flex flex-col items-center justify-center gap-2 py-4 bg-emerald-600 text-white rounded-2xl font-bold text-[10px] uppercase hover:bg-emerald-700 transition"><i data-lucide="message-circle" class="w-4 h-4"></i> WhatsApp</a>`
+                : '';
+
             document.getElementById('modalContent').innerHTML = `
                 <div class="space-y-8">
-                    <div class="bg-zinc-900 text-white p-10 rounded-[32px] shadow-inner"><h4 class="text-[9px] font-bold text-indigo-400 uppercase mb-4 tracking-widest">Initial Inquiry</h4><p class="text-lg font-medium leading-relaxed">"${lead.query_data}"</p></div>
+                    <div class="bg-zinc-900 text-white p-10 rounded-[32px] shadow-xl"><h4 class="text-[9px] font-bold text-indigo-400 uppercase mb-4 tracking-widest">Client Inquiry</h4><p class="text-lg font-medium">"${lead.query_data}"</p></div>
                     
                     ${currentTab === 'priority' || (lead.expiry_at && new Date(lead.expiry_at) <= new Date()) ? `
                     <div class="p-6 bg-amber-50 rounded-2xl border border-amber-100">
-                        <label class="block text-[10px] font-bold text-amber-700 uppercase mb-2">Reschedule Follow-up</label>
+                        <label class="block text-[10px] font-bold text-amber-700 uppercase mb-2">Adjust Follow-up</label>
                         <div class="flex gap-2">
-                            <input type="datetime-local" id="etaInput" value="${lead.expiry_at ? lead.expiry_at.slice(0,16) : ''}" class="flex-1 bg-white border border-amber-200 rounded-xl p-3 text-xs font-semibold outline-none focus:border-amber-400">
-                            <button onclick="saveETA('${id}')" class="bg-amber-600 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase hover:bg-amber-700 transition">Update</button>
+                            <input type="datetime-local" id="etaInput" value="${lead.expiry_at ? lead.expiry_at.slice(0,16) : ''}" class="flex-1 bg-white border border-amber-200 rounded-xl p-3 text-xs font-bold outline-none">
+                            <button onclick="saveETA('${id}')" class="bg-amber-600 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase hover:bg-amber-700 transition">Save</button>
                         </div>
                     </div>` : ''}
 
-                    <div class="grid grid-cols-2 gap-3">
-                        <a href="https://wa.me/${lead.phone_number.replace(/\D/g,'')}" target="_blank" class="flex items-center justify-center gap-3 py-4 bg-emerald-600 text-white rounded-2xl font-bold text-xs uppercase hover:bg-emerald-700 transition"><i data-lucide="message-circle" class="w-4 h-4"></i> WhatsApp</a>
-                        <a href="mailto:${lead.email_id}" class="flex items-center justify-center gap-3 py-4 bg-indigo-600 text-white rounded-2xl font-bold text-xs uppercase hover:bg-indigo-700 transition"><i data-lucide="mail" class="w-4 h-4"></i> Email</a>
+                    <div class="grid grid-cols-3 gap-3">
+                        <a href="tel:${lead.phone_number}" class="flex flex-col items-center justify-center gap-2 py-4 bg-zinc-900 text-white rounded-2xl font-bold text-[10px] uppercase hover:bg-zinc-800 transition"><i data-lucide="phone" class="w-4 h-4"></i> Call</a>
+                        ${whatsappButton}
+                        <a href="mailto:${lead.email_id}" class="flex flex-col items-center justify-center gap-2 py-4 bg-indigo-600 text-white rounded-2xl font-bold text-[10px] uppercase hover:bg-indigo-700 transition"><i data-lucide="mail" class="w-4 h-4"></i> Email</a>
                     </div>
 
-                    <div><label class="block text-[10px] font-bold text-zinc-400 uppercase mb-3 tracking-widest">Move Lifecycle</label>
-                        <select onchange="handleStatusUpdate('${id}', this.value)" class="w-full bg-zinc-50 border border-zinc-200 rounded-2xl p-5 text-sm font-bold text-zinc-700 outline-none focus:border-indigo-500 cursor-pointer">
-                            <option value="">Choose Status...</option>${statuses.map(s => `<option value="${s.status_id}" ${s.status_id === det.status_id ? 'selected' : ''}>${s.status_details.toUpperCase()}</option>`).join('')}
+                    <div><label class="block text-[10px] font-bold text-zinc-400 uppercase mb-3 tracking-widest">Update Pipeline Stage</label>
+                        <select onchange="handleStatusUpdate('${id}', this.value)" class="w-full bg-zinc-50 border border-zinc-200 rounded-2xl p-5 text-sm font-bold text-zinc-700 outline-none">
+                            <option value="">Move to...</option>${statuses.map(s => `<option value="${s.status_id}" ${s.status_id === det.status_id ? 'selected' : ''}>${s.status_details.toUpperCase()}</option>`).join('')}
                         </select>
                     </div>
                 </div>
 
                 <div class="flex flex-col bg-slate-50 rounded-[32px] p-8 border border-slate-200 h-full overflow-hidden">
-                    <h4 class="text-[10px] font-bold text-slate-400 uppercase mb-6 tracking-widest">Activity Timeline</h4>
-                    
+                    <h4 class="text-[10px] font-bold text-slate-400 uppercase mb-6 tracking-widest">Interaction Timeline</h4>
                     <div class="flex-1 overflow-y-auto pr-2 mb-6">
                         ${leadComms.length > 0 ? leadComms.map(c => `
                             <div class="log-bubble shadow-sm">
                                 <p class="text-xs font-medium text-slate-700 leading-normal mb-3">${c.comments}</p>
                                 <div class="flex items-center justify-between border-t border-slate-200 pt-2">
-                                    <div class="flex items-center gap-1.5">
-                                        <i data-lucide="calendar" class="w-3 h-3 text-slate-400"></i>
-                                        <span class="log-timestamp">${new Date(c.created_at).toLocaleDateString([], {day:'2-digit', month:'short', year:'numeric'})}</span>
-                                    </div>
-                                    <div class="flex items-center gap-1.5">
-                                        <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
-                                        <span class="log-timestamp">${new Date(c.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                    </div>
+                                    <div class="flex items-center gap-1.5"><i data-lucide="calendar" class="w-3 h-3 text-slate-400"></i><span class="log-timestamp">${new Date(c.created_at).toLocaleDateString([], {day:'2-digit', month:'short', year:'numeric'})}</span></div>
+                                    <div class="flex items-center gap-1.5"><i data-lucide="clock" class="w-3 h-3 text-slate-400"></i><span class="log-timestamp">${new Date(c.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div>
                                 </div>
-                            </div>`).join('') : '<p class="text-xs text-slate-400 italic text-center mt-10">No activities logged yet.</p>'}
+                            </div>`).join('') : '<p class="text-xs text-slate-400 italic text-center mt-10">No interactions recorded.</p>'}
                     </div>
-
                     <div class="flex gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
-                        <input id="noteInput" type="text" placeholder="Add an update..." class="flex-1 px-4 outline-none text-xs font-medium text-slate-600"><button onclick="handleCommentSave('${id}')" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-bold hover:bg-indigo-700 transition">Log Interaction</button>
+                        <input id="noteInput" type="text" placeholder="Type activity..." class="flex-1 px-4 outline-none text-xs font-medium"><button onclick="handleCommentSave('${id}')" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-bold">Log Update</button>
                     </div>
                 </div>`;
             document.getElementById('modal').classList.remove('hidden');
