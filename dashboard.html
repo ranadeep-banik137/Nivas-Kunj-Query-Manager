@@ -30,36 +30,18 @@
         .mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
         .sidebar.collapsed .hide-collapsed { display: none; }
         
-        /* Updated Toast Logic */
         #success-toast { 
-            position: fixed; 
-            top: 24px; 
-            left: 50%; 
-            transform: translateX(-50%) translateY(-100px); 
-            z-index: 300; 
-            opacity: 0;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: fixed; top: 24px; left: 50%; transform: translateX(-50%) translateY(-100px); 
+            z-index: 300; opacity: 0; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        #success-toast.show {
-            transform: translateX(-50%) translateY(0);
-            opacity: 1;
-        }
+        #success-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
-        /* Standard Activity Log */
-        .log-bubble {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 12px 16px;
-            margin-bottom: 12px;
-        }
-        .log-timestamp {
-            font-size: 10px;
-            font-weight: 600;
-            color: #94a3b8;
-            text-transform: uppercase;
-            letter-spacing: 0.025em;
-        }
+        .log-bubble { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; }
+        .log-timestamp { font-size: 10px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.025em; }
+        
+        /* New Styles for Quote Modal */
+        .quote-stat-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 16px; }
+        .quote-tag { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
     </style>
 </head>
 <body>
@@ -83,7 +65,8 @@
             </div>
 
             <nav class="flex-1 px-3 space-y-2">
-                <div id="tab-exec" onclick="switchTab('exec')" class="nav-item active flex items-center gap-3 px-4 py-3 rounded-xl"><i data-lucide="layout-grid" class="w-4 h-4"></i><span class="hide-collapsed">Dashboard</span></div>
+                <div id="tab-exec" onclick="switchTab('exec')" class="nav-item active flex items-center gap-3 px-4 py-3 rounded-xl"><i data-lucide="layout-grid" class="w-4 h-4"></i><span class="hide-collapsed">Enquiries</span></div>
+                <div id="tab-quotes" onclick="switchTab('quotes')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl"><i data-lucide="file-text" class="w-4 h-4"></i><span class="hide-collapsed">Quotes</span></div>
                 <div id="tab-priority" onclick="switchTab('priority')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl relative">
                     <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i><span class="hide-collapsed">Follow-ups</span>
                     <span id="priorityBadge" class="hidden ml-auto bg-amber-500/10 text-amber-500 text-[10px] px-2 py-0.5 rounded-full font-bold">0</span>
@@ -92,13 +75,13 @@
 
             <div class="p-6 border-t border-zinc-800/50">
                 <div class="flex items-center justify-between mb-3"><span class="text-[10px] font-medium text-zinc-500">v3.2.6 Stable</span><div class="h-1.5 w-1.5 rounded-full bg-indigo-500"></div></div>
-                    <p class="text-[8px] text-zinc-600 font-medium uppercase tracking-tight whitespace-nowrap overflow-hidden">© 2025 Nivas Kunj.  All rights reserved. </p>
+                <p class="text-[8px] text-zinc-600 font-medium uppercase tracking-tight whitespace-nowrap overflow-hidden">© 2025 Nivas Kunj. All rights reserved.</p>
             </div>
         </aside>
 
         <main class="flex flex-col overflow-hidden relative">
             <header class="h-20 px-10 flex items-center justify-between shrink-0 bg-white/50 backdrop-blur-md z-[60]">
-                <h2 id="viewTitle" class="text-xl font-bold text-zinc-900 tracking-tight">Lead Distribution</h2>
+                <h2 id="viewTitle" class="text-xl font-bold text-zinc-900 tracking-tight">Customer Enquiry Requests</h2>
                 <div class="flex items-center gap-6">
                     <div class="flex items-center bg-zinc-100/50 border border-zinc-200 rounded-xl px-3 py-1.5 gap-2">
                         <input type="date" id="dateFrom" onchange="renderDashboard()" class="text-[10px] font-semibold outline-none bg-transparent text-zinc-600">
@@ -172,16 +155,23 @@
         const S_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndiaGN2Y3NkcGRhbmRheGlkbmxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NjMwMjksImV4cCI6MjA4MTUzOTAyOX0.n8R1OpFxilWbDfteODc-lyVF_qvntyRnJNVM3g9xCWs';
         const sb = supabase.createClient(S_URL, S_KEY);
 
-        let enquiries = [], details = [], statuses = [], comments = [], currentTab = 'exec', sortCol = 'created_at', sortAsc = false, currentPage = 1, itemsPerPage = 8;
+        let enquiries = [], details = [], statuses = [], comments = [], cDetails = [], qDetails = [], currentTab = 'exec', sortCol = 'created_at', sortAsc = false, currentPage = 1, itemsPerPage = 8;
 
         async function fetchAllData() {
-            const [rEnq, rDet, rSta, rCom] = await Promise.all([
+            const [rEnq, rDet, rSta, rCom, rCDet, rQDet] = await Promise.all([
                 sb.from('raw_enquiries').select('*').order('created_at', { ascending: false }),
                 sb.from('enquiry_details').select('*'),
                 sb.from('enquiry_status').select('*'),
-                sb.from('enquiry_comments').select('*').order('created_at', { ascending: false })
+                sb.from('enquiry_comments').select('*').order('created_at', { ascending: false }),
+                sb.from('customer_details').select('*'),
+                sb.from('quote_details').select('*')
             ]);
-            enquiries = rEnq.data || []; details = rDet.data || []; statuses = rSta.data || []; comments = rCom.data || [];
+            enquiries = rEnq.data || []; 
+            details = rDet.data || []; 
+            statuses = rSta.data || []; 
+            comments = rCom.data || [];
+            cDetails = rCDet.data || [];
+            qDetails = rQDet.data || [];
             
             const f = document.getElementById('statusFilter');
             f.innerHTML = '<option value="all">Pipeline: All</option>';
@@ -196,8 +186,11 @@
             currentTab = tab;
             currentPage = 1;
             document.getElementById('tab-exec').classList.toggle('active', tab === 'exec');
+            document.getElementById('tab-quotes').classList.toggle('active', tab === 'quotes');
             document.getElementById('tab-priority').classList.toggle('active', tab === 'priority');
-            document.getElementById('viewTitle').innerText = tab === 'exec' ? 'Lead Distribution' : 'Upcoming Follow-ups';
+            
+            const titles = { 'exec': 'Lead Distribution', 'quotes': 'Customer Quote Requests', 'priority': 'Upcoming Follow-ups' };
+            document.getElementById('viewTitle').innerText = titles[tab];
             renderDashboard();
         }
 
@@ -209,11 +202,15 @@
             const now = new Date();
             const next7 = new Date(); next7.setDate(now.getDate() + 7);
 
-            let filtered = enquiries.filter(item => {
+            let filtered = enquiries.map(e => {
+                const c = cDetails.find(cd => cd.enquiry_id === e.id) || {};
+                return { ...e, ...c }; // Merge customer details into enquiry object
+            }).filter(item => {
                 const det = details.find(d => d.enquiry_id === item.id) || {};
                 const s = (det.status_id || 0).toString();
                 const itemDate = new Date(item.created_at).getTime();
-                const matchSearch = item.customer_name.toLowerCase().includes(query) || item.email_id.toLowerCase().includes(query);
+                
+                const matchSearch = (item.customer_name || '').toLowerCase().includes(query) || (item.email_id || '').toLowerCase().includes(query);
                 const matchStatus = filter === 'all' || s === filter;
                 const matchDate = (!fromStr || itemDate >= new Date(fromStr).setHours(0,0,0,0)) && (!toStr || itemDate <= new Date(toStr).setHours(23,59,59,999));
 
@@ -221,6 +218,10 @@
                     const exp = item.expiry_at ? new Date(item.expiry_at) : null;
                     return matchSearch && matchStatus && exp && exp >= now && exp <= next7;
                 }
+                
+                if (currentTab === 'quotes') return item.is_quote === true && matchSearch && matchStatus && matchDate;
+                if (currentTab === 'exec') return item.is_quote !== true && matchSearch && matchStatus && matchDate;
+                
                 return matchSearch && matchStatus && matchDate;
             });
 
@@ -238,7 +239,7 @@
                 const inter = currentTab === 'priority' ? `Exp: ${new Date(item.expiry_at).toLocaleDateString()}` : getTimeAgo(comments.find(c => c.enquiry_id === item.id)?.created_at);
                 
                 return `<div class="data-row"><div class="crm-grid">
-                    <div><div class="font-bold text-zinc-900 text-sm">${item.customer_name}</div><div class="mono text-zinc-400 mt-0.5">${item.email_id}</div></div>
+                    <div><div class="font-bold text-zinc-900 text-sm">${item.customer_name || 'N/A'}</div><div class="mono text-zinc-400 mt-0.5">${item.email_id || 'No Email'}</div></div>
                     <div><span class="px-2 py-0.5 rounded border text-[9px] font-bold bg-indigo-50 text-indigo-600">${sObj.status_details}</span></div>
                     <div class="text-[11px] font-semibold text-zinc-500">${inter}</div>
                     <div class="mono text-zinc-400">${new Date(item.created_at).toLocaleDateString()}</div>
@@ -287,12 +288,14 @@
             const list = document.getElementById('notifList');
             if (activeAlerts.length > 0) {
                 dot.classList.remove('hidden');
-                list.innerHTML = activeAlerts.map(a => `
+                list.innerHTML = activeAlerts.map(a => {
+                    const c = cDetails.find(cd => cd.enquiry_id === a.id) || {};
+                    return `
                     <div onclick="openLeadModal('${a.id}')" class="p-4 bg-red-50 text-red-700 rounded-2xl border border-red-100 font-bold cursor-pointer hover:bg-red-100 transition flex flex-col gap-1">
-                        <div class="flex justify-between items-center"><span>${a.customer_name}</span><i data-lucide="external-link" class="w-3 h-3"></i></div>
+                        <div class="flex justify-between items-center"><span>${c.customer_name || 'N/A'}</span><i data-lucide="external-link" class="w-3 h-3"></i></div>
                         <span class="text-[9px] opacity-70 uppercase tracking-tighter">Follow-up Past Due: ${new Date(a.expiry_at).toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</span>
-                    </div>
-                `).join('');
+                    </div>`;
+                }).join('');
             } else {
                 dot.classList.add('hidden');
                 list.innerHTML = '<div class="text-zinc-400 italic p-6 text-center text-xs font-medium">No pending follow-ups</div>';
@@ -316,19 +319,70 @@
 
         function openLeadModal(id) {
             const lead = enquiries.find(e => e.id === id);
+            const cust = cDetails.find(c => c.enquiry_id === id) || {};
             const det = details.find(d => d.enquiry_id === id) || {};
             const leadComms = comments.filter(c => c.enquiry_id === id);
-            document.getElementById('modalName').innerText = lead.customer_name;
+            const quote = qDetails.find(q => q.enquiry_id === id);
+
+            document.getElementById('modalName').innerText = cust.customer_name || 'Prospect';
             document.getElementById('modalBadge').innerText = statuses.find(s => s.status_id === det.status_id)?.status_details || 'NEW';
             
-            // Logic for conditional WhatsApp button
-            const whatsappButton = lead.whatsapp_updates === true || lead.whatsapp_updates === 'true' 
-                ? `<a href="https://wa.me/${lead.phone_number.replace(/\D/g,'')}" target="_blank" class="flex flex-col items-center justify-center gap-2 py-4 bg-emerald-600 text-white rounded-2xl font-bold text-[10px] uppercase hover:bg-emerald-700 transition"><i data-lucide="message-circle" class="w-4 h-4"></i> WhatsApp</a>`
+            const whatsappButton = cust.whatsapp_updates === true || cust.whatsapp_updates === 'true' 
+                ? `<a href="https://wa.me/${cust.phone_number.replace(/\D/g,'')}" target="_blank" class="flex flex-col items-center justify-center gap-2 py-4 bg-emerald-600 text-white rounded-2xl font-bold text-[10px] uppercase hover:bg-emerald-700 transition"><i data-lucide="message-circle" class="w-4 h-4"></i> WhatsApp</a>`
                 : '';
+
+            // Build Property Details if Quote
+            let quoteHtml = '';
+            if (lead.is_quote && quote) {
+                const rooms = [];
+                if(quote.bedrooms > 0) rooms.push({n: quote.bedrooms, l: 'Bedrooms'});
+                if(quote.washrooms > 0) rooms.push({n: quote.washrooms, l: 'Washrooms'});
+                if(quote.living_rooms > 0) rooms.push({n: quote.living_rooms, l: 'Living'});
+                if(quote.kitchens > 0) rooms.push({n: quote.kitchens, l: 'Kitchen'});
+                if(quote.puja_ghar > 0) rooms.push({n: quote.puja_ghar, l: 'Puja Ghar'});
+                if(quote.dining > 0) rooms.push({n: quote.dining, l: 'Dining'});
+                if(quote.balcony > 0) rooms.push({n: quote.balcony, l: 'Balcony'});
+
+                quoteHtml = `
+                    <div class="bg-indigo-50/50 border border-indigo-100 p-8 rounded-[32px] mb-8">
+                        <div class="flex justify-between items-start mb-6">
+                            <div>
+                                <h4 class="quote-tag mb-1">Property Specifications</h4>
+                                <p class="text-xl font-bold text-indigo-900">${quote.flat_type} • ${quote.area_sqft} Sq.Ft</p>
+                            </div>
+                            <div class="text-right">
+                                <h4 class="quote-tag mb-1">Package Tier</h4>
+                                <span class="px-3 py-1 bg-indigo-600 text-white rounded-full text-[10px] font-black uppercase">${quote.package || 'Standard'}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-4 gap-3 mb-6">
+                            ${rooms.map(r => `
+                                <div class="quote-stat-card text-center">
+                                    <div class="text-lg font-bold text-zinc-900">${r.n}</div>
+                                    <div class="text-[9px] font-bold text-zinc-400 uppercase">${r.l}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <div class="flex items-center gap-3 p-4 bg-white rounded-2xl border border-indigo-100">
+                            <i data-lucide="map-pin" class="w-5 h-5 text-indigo-500"></i>
+                            <div>
+                                <p class="text-[10px] font-bold text-zinc-400 uppercase leading-none mb-1">Project Site</p>
+                                <p class="text-xs font-semibold text-zinc-700">${quote.landmark || 'No Landmark'}, ${quote.city} - ${quote.pincode}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
 
             document.getElementById('modalContent').innerHTML = `
                 <div class="space-y-8">
-                    <div class="bg-zinc-900 text-white p-10 rounded-[32px] shadow-xl"><h4 class="text-[9px] font-bold text-indigo-400 uppercase mb-4 tracking-widest">Client Inquiry</h4><p class="text-lg font-medium">"${lead.query_data}"</p></div>
+                    ${quoteHtml}
+                    <div class="bg-zinc-900 text-white p-10 rounded-[32px] shadow-xl">
+                        <h4 class="text-[9px] font-bold text-indigo-400 uppercase mb-4 tracking-widest">Client Inquiry</h4>
+                        <p class="text-lg font-medium">"${lead.query_data || 'No query message provided.'}"</p>
+                    </div>
                     
                     ${currentTab === 'priority' || (lead.expiry_at && new Date(lead.expiry_at) <= new Date()) ? `
                     <div class="p-6 bg-amber-50 rounded-2xl border border-amber-100">
@@ -340,9 +394,9 @@
                     </div>` : ''}
 
                     <div class="grid grid-cols-3 gap-3">
-                        <a href="tel:${lead.phone_number}" class="flex flex-col items-center justify-center gap-2 py-4 bg-zinc-900 text-white rounded-2xl font-bold text-[10px] uppercase hover:bg-zinc-800 transition"><i data-lucide="phone" class="w-4 h-4"></i> Call</a>
+                        <a href="tel:${cust.phone_number}" class="flex flex-col items-center justify-center gap-2 py-4 bg-zinc-900 text-white rounded-2xl font-bold text-[10px] uppercase hover:bg-zinc-800 transition"><i data-lucide="phone" class="w-4 h-4"></i> Call</a>
                         ${whatsappButton}
-                        <a href="mailto:${lead.email_id}" class="flex flex-col items-center justify-center gap-2 py-4 bg-indigo-600 text-white rounded-2xl font-bold text-[10px] uppercase hover:bg-indigo-700 transition"><i data-lucide="mail" class="w-4 h-4"></i> Email</a>
+                        <a href="mailto:${cust.email_id}" class="flex flex-col items-center justify-center gap-2 py-4 bg-indigo-600 text-white rounded-2xl font-bold text-[10px] uppercase hover:bg-indigo-700 transition"><i data-lucide="mail" class="w-4 h-4"></i> Email</a>
                     </div>
 
                     <div><label class="block text-[10px] font-bold text-zinc-400 uppercase mb-3 tracking-widest">Update Pipeline Stage</label>
@@ -364,8 +418,15 @@
                                 </div>
                             </div>`).join('') : '<p class="text-xs text-slate-400 italic text-center mt-10">No interactions recorded.</p>'}
                     </div>
-                    <div class="flex gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
-                        <input id="noteInput" type="text" placeholder="Type activity..." class="flex-1 px-4 outline-none text-xs font-medium"><button onclick="handleCommentSave('${id}')" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-bold">Log Update</button>
+                    <div class="flex flex-col gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
+                        <div class="flex gap-2 items-center">
+                            <input id="noteInput" type="text" placeholder="Type activity..." class="flex-1 px-4 outline-none text-xs font-medium">
+                            <label class="cursor-pointer p-2 hover:bg-slate-100 rounded-lg transition">
+                                <i data-lucide="image" class="w-4 h-4 text-slate-400"></i>
+                                <input type="file" class="hidden" accept="image/*">
+                            </label>
+                            <button onclick="handleCommentSave('${id}')" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-bold">Log Update</button>
+                        </div>
                     </div>
                 </div>`;
             document.getElementById('modal').classList.remove('hidden');
