@@ -39,9 +39,14 @@
         .log-bubble { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; }
         .log-timestamp { font-size: 10px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.025em; }
         
-        /* New Styles for Quote Modal */
         .quote-stat-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 16px; }
         .quote-tag { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
+
+        /* Image Preview Styles */
+        .image-preview-card { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; background: #fff; aspect-ratio: 16/10; transition: all 0.3s; }
+        .image-preview-card img { width: 100%; height: 100%; object-fit: cover; }
+        .image-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.4); opacity: 0; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .image-preview-card:hover .image-overlay { opacity: 1; }
     </style>
 </head>
 <body>
@@ -155,16 +160,17 @@
         const S_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndiaGN2Y3NkcGRhbmRheGlkbmxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NjMwMjksImV4cCI6MjA4MTUzOTAyOX0.n8R1OpFxilWbDfteODc-lyVF_qvntyRnJNVM3g9xCWs';
         const sb = supabase.createClient(S_URL, S_KEY);
 
-        let enquiries = [], details = [], statuses = [], comments = [], cDetails = [], qDetails = [], currentTab = 'exec', sortCol = 'created_at', sortAsc = false, currentPage = 1, itemsPerPage = 8;
+        let enquiries = [], details = [], statuses = [], comments = [], cDetails = [], qDetails = [], qImages = [], currentTab = 'exec', sortCol = 'created_at', sortAsc = false, currentPage = 1, itemsPerPage = 8;
 
         async function fetchAllData() {
-            const [rEnq, rDet, rSta, rCom, rCDet, rQDet] = await Promise.all([
+            const [rEnq, rDet, rSta, rCom, rCDet, rQDet, rQImg] = await Promise.all([
                 sb.from('raw_enquiries').select('*').order('created_at', { ascending: false }),
                 sb.from('enquiry_details').select('*'),
                 sb.from('enquiry_status').select('*'),
                 sb.from('enquiry_comments').select('*').order('created_at', { ascending: false }),
                 sb.from('customer_details').select('*'),
-                sb.from('quote_details').select('*')
+                sb.from('quote_details').select('*'),
+                sb.from('quote_images').select('*')
             ]);
             enquiries = rEnq.data || []; 
             details = rDet.data || []; 
@@ -172,6 +178,7 @@
             comments = rCom.data || [];
             cDetails = rCDet.data || [];
             qDetails = rQDet.data || [];
+            qImages = rQImg.data || [];
             
             const f = document.getElementById('statusFilter');
             f.innerHTML = '<option value="all">Pipeline: All</option>';
@@ -204,7 +211,7 @@
 
             let filtered = enquiries.map(e => {
                 const c = cDetails.find(cd => cd.enquiry_id === e.id) || {};
-                return { ...e, ...c }; // Merge customer details into enquiry object
+                return { ...e, ...c };
             }).filter(item => {
                 const det = details.find(d => d.enquiry_id === item.id) || {};
                 const s = (det.status_id || 0).toString();
@@ -323,6 +330,7 @@
             const det = details.find(d => d.enquiry_id === id) || {};
             const leadComms = comments.filter(c => c.enquiry_id === id);
             const quote = qDetails.find(q => q.enquiry_id === id);
+            const images = qImages.filter(img => img.enquiry_id === id);
 
             document.getElementById('modalName').innerText = cust.customer_name || 'Prospect';
             document.getElementById('modalBadge').innerText = statuses.find(s => s.status_id === det.status_id)?.status_details || 'NEW';
@@ -331,7 +339,6 @@
                 ? `<a href="https://wa.me/${cust.phone_number.replace(/\D/g,'')}" target="_blank" class="flex flex-col items-center justify-center gap-2 py-4 bg-emerald-600 text-white rounded-2xl font-bold text-[10px] uppercase hover:bg-emerald-700 transition"><i data-lucide="message-circle" class="w-4 h-4"></i> WhatsApp</a>`
                 : '';
 
-            // Build Property Details if Quote
             let quoteHtml = '';
             if (lead.is_quote && quote) {
                 const rooms = [];
@@ -342,6 +349,26 @@
                 if(quote.puja_ghar > 0) rooms.push({n: quote.puja_ghar, l: 'Puja Ghar'});
                 if(quote.dining > 0) rooms.push({n: quote.dining, l: 'Dining'});
                 if(quote.balcony > 0) rooms.push({n: quote.balcony, l: 'Balcony'});
+
+                // Logic for Image Previews
+                let imagesHtml = '';
+                if(images && images.length > 0) {
+                    imagesHtml = `
+                    <div class="mt-8">
+                        <h4 class="quote-tag mb-4">Site Photos (${images.length})</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            ${images.map(img => `
+                                <div class="image-preview-card group">
+                                    <img src="${img.image_url}" alt="Flat Photo" loading="lazy">
+                                    <div class="image-overlay">
+                                        <a href="${img.image_url}" target="_blank" class="p-2 bg-white rounded-full text-indigo-600 hover:scale-110 transition"><i data-lucide="maximize-2" class="w-4 h-4"></i></a>
+                                        <a href="${img.image_url}" download class="p-2 bg-indigo-600 rounded-full text-white hover:scale-110 transition"><i data-lucide="download" class="w-4 h-4"></i></a>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>`;
+                }
 
                 quoteHtml = `
                     <div class="bg-indigo-50/50 border border-indigo-100 p-8 rounded-[32px] mb-8">
@@ -365,13 +392,15 @@
                             `).join('')}
                         </div>
 
-                        <div class="flex items-center gap-3 p-4 bg-white rounded-2xl border border-indigo-100">
+                        <div class="flex items-center gap-3 p-4 bg-white rounded-2xl border border-indigo-100 mb-4">
                             <i data-lucide="map-pin" class="w-5 h-5 text-indigo-500"></i>
                             <div>
                                 <p class="text-[10px] font-bold text-zinc-400 uppercase leading-none mb-1">Project Site</p>
                                 <p class="text-xs font-semibold text-zinc-700">${quote.landmark || 'No Landmark'}, ${quote.city} - ${quote.pincode}</p>
                             </div>
                         </div>
+
+                        ${imagesHtml}
                     </div>
                 `;
             }
