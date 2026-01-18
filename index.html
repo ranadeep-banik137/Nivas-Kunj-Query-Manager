@@ -9,16 +9,20 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@400;500;600;700&display=swap');
         
+        :root {
+            font-size: 12px; 
+        }
+
         body, html { 
             height: 100vh; 
             margin: 0; 
             font-family: 'Inter', sans-serif; 
-            /* Improved Mobile Compatibility: scrollable if content overflows on small screens */
-            overflow-x: hidden;
-            overflow-y: auto;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        /* 2. UNIQUE MULTI-STOP GRADIENT BACKGROUND */
         .full-screen-bg {
             position: fixed;
             inset: 0;
@@ -30,6 +34,7 @@
             background: rgba(255, 255, 255, 0.98);
             backdrop-filter: blur(15px);
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            max-width: 360px; 
         }
 
         .hidden { display: none !important; }
@@ -40,86 +45,91 @@
 
         #googleBtn:hover { border-color: #4285F4; color: #4285F4; background: #f8faff; }
         #magicBtn:hover { border-color: #6366f1; color: #6366f1; background: #f5f3ff; }
+        
+        .hero-text {
+            font-size: clamp(3rem, 6vw, 5.5rem);
+            line-height: 0.95;
+        }
     </style>
 </head>
-<body class="flex items-center justify-center p-4 md:p-12">
+<body>
 
     <div class="full-screen-bg"></div>
 
-    <div class="w-full max-w-7xl flex flex-col lg:flex-row items-center justify-between gap-10 lg:gap-12">
+    <div class="w-[90%] max-w-7xl flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-24">
         
         <div class="flex-1 text-white fade-in text-center lg:text-left">
-            <div class="flex flex-col lg:flex-row items-center gap-4 lg:gap-6 mb-8 lg:mb-12">
+            <div class="flex flex-col lg:flex-row items-center gap-4 mb-10">
                 <img src="https://github.com/ranadeep-banik137/NivasKunjInteriors/blob/main/logo%20transparent%20PNG.png?raw=true" 
-                     alt="Nivas Kunj" class="h-20 lg:h-24 w-auto">
-                <div class="hidden lg:block h-12 w-[1px] bg-indigo-500/50"></div>
+                     alt="Nivas Kunj" class="h-16 lg:h-20 w-auto">
+                <div class="hidden lg:block h-10 w-[1px] bg-indigo-500/50"></div>
                 <div>
-                    <h1 class="font-title font-extrabold text-3xl lg:text-4xl tracking-tighter uppercase leading-none">Nivas Kunj</h1>
-                    <p class="text-[10px] tracking-[0.6em] font-bold text-indigo-400 mt-1 uppercase">Luxury Interiors</p>
+                    <h1 class="font-title font-extrabold text-2xl tracking-tighter uppercase leading-none">Nivas Kunj</h1>
+                    <p class="text-[8px] tracking-[0.6em] font-bold text-indigo-400 mt-1 uppercase">Luxury Interiors</p>
                 </div>
             </div>
 
-            <div class="space-y-4 lg:space-y-6">
-                <h2 class="text-5xl lg:text-8xl font-black font-title tracking-tighter leading-tight lg:leading-[0.95] uppercase">
+            <div class="space-y-6">
+                <h2 class="hero-text font-black font-title tracking-tighter uppercase">
                     Crafting Spaces,<br>
                     <span class="text-indigo-400">Defining Lives.</span>
                 </h2>
-                <div class="w-20 h-2 bg-indigo-600 rounded-full mx-auto lg:mx-0"></div>
-                <p class="text-lg lg:text-xl text-slate-300 max-w-md font-light leading-relaxed mx-auto lg:mx-0">
+                <div class="w-16 h-1.5 bg-indigo-600 rounded-full mx-auto lg:mx-0"></div>
+                <p class="text-lg text-slate-300 max-w-md font-light leading-relaxed mx-auto lg:mx-0">
                     Experience the fusion of luxury aesthetics and unparalleled precision.
                 </p>
             </div>
         </div>
 
-        <div class="w-full max-w-md glass-card rounded-[35px] lg:rounded-[45px] p-8 lg:p-12 fade-in" style="animation-delay: 0.2s">
-            <div class="text-center mb-8 lg:mb-10">
-                <p id="auth-subtitle" class="text-[10px] font-black text-indigo-600 uppercase tracking-[0.4em] mb-2">Workspace Entry</p>
-                <h2 id="main-title" class="text-3xl lg:text-4xl font-black text-slate-950 font-title tracking-tighter uppercase">Authorize</h2>
+        <div class="w-full glass-card rounded-[30px] p-8 lg:p-10 fade-in" style="animation-delay: 0.2s">
+            <div class="text-center mb-8">
+                <p id="auth-subtitle" class="text-[9px] font-black text-indigo-600 uppercase tracking-[0.4em] mb-2">Workspace Entry</p>
+                <h2 id="main-title" class="text-2xl lg:text-3xl font-black text-slate-950 font-title tracking-tighter uppercase">Authorize</h2>
             </div>
 
-            <div class="space-y-5">
+            <div class="space-y-4">
                 <div id="email-group">
                     <input type="email" id="email" placeholder="Email identity" 
-                        class="w-full p-4 bg-slate-100 border border-transparent rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-900 text-lg">
+                        class="w-full p-4 bg-slate-100 border border-transparent rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-900 text-base">
                 </div>
 
                 <div id="password-group">
                     <input type="password" id="password" placeholder="Password" 
-                        class="w-full p-4 bg-slate-100 border border-transparent rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-900 text-lg">
+                        class="w-full p-4 bg-slate-100 border border-transparent rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-900 text-base">
                 </div>
 
                 <div id="confirm-group" class="hidden">
                     <input type="password" id="confirm-password" placeholder="Confirm New Password" 
-                        class="w-full p-4 bg-slate-100 border border-transparent rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-900 text-lg">
+                        class="w-full p-4 bg-slate-100 border border-transparent rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-900 text-base">
                 </div>
 
-                <button id="mainBtn" class="w-full bg-slate-900 text-white p-5 rounded-2xl font-bold text-[12px] uppercase tracking-[0.3em] hover:bg-indigo-600 transition-all shadow-xl active:scale-95">
+                <button id="mainBtn" class="w-full bg-slate-900 text-white p-4 rounded-xl font-bold text-[10px] uppercase tracking-[0.3em] hover:bg-indigo-600 transition-all shadow-xl active:scale-95">
                     Enter Workspace
                 </button>
 
                 <div class="flex justify-between items-center px-1">
-                    <button onclick="toggleMode('reset')" id="forgot-link" class="text-[12px] font-bold text-slate-500 hover:text-indigo-600 uppercase tracking-widest transition">Forget Key?</button>
-                    <button onclick="toggleMode('register')" id="toggle-btn" class="text-[12px] font-bold text-indigo-600 uppercase tracking-widest transition">New Member?</button>
+                    <button onclick="toggleMode('reset')" id="forgot-link" class="text-[10px] font-bold text-slate-500 hover:text-indigo-600 uppercase tracking-widest transition">Forget Key?</button>
+                    <button onclick="toggleMode('register')" id="toggle-btn" class="text-[10px] font-bold text-indigo-600 uppercase tracking-widest transition">New Member?</button>
                 </div>
 
-                <div class="pt-6 border-t border-slate-100 mt-6">
-                    <div id="alt-methods" class="grid grid-cols-2 gap-4">
-                        <button id="magicBtn" class="bg-white border border-slate-200 p-4 rounded-xl font-bold text-[11px] uppercase tracking-widest hover:border-indigo-500 transition shadow-sm text-indigo-600">
+                <div class="pt-6 border-t border-slate-100 mt-4">
+                    <div id="alt-methods" class="grid grid-cols-2 gap-3">
+                        <button id="magicBtn" class="bg-white border border-slate-200 p-3 rounded-lg font-bold text-[9px] uppercase tracking-widest hover:border-indigo-500 transition shadow-sm text-indigo-600">
                             ✨ Magic Link
                         </button>
-                        <button id="googleBtn" class="bg-white border border-slate-200 p-4 rounded-xl font-bold text-[11px] uppercase tracking-widest hover:border-indigo-500 transition flex items-center justify-center gap-2 shadow-sm text-slate-700">
-                            <img src="https://www.google.com/favicon.ico" class="w-4 h-4"> Google
+                        <button id="googleBtn" class="bg-white border border-slate-200 p-3 rounded-lg font-bold text-[9px] uppercase tracking-widest hover:border-indigo-500 transition flex items-center justify-center gap-2 shadow-sm text-slate-700">
+                            <img src="https://www.google.com/favicon.ico" class="w-3 h-3"> Google
                         </button>
                     </div>
                 </div>
             </div>
 
-            <p id="status" class="mt-6 text-center text-[10px] font-bold uppercase tracking-widest h-4 text-indigo-600"></p>
+            <p id="status" class="mt-4 text-center text-[9px] font-bold uppercase tracking-widest h-4 text-indigo-600"></p>
 
-            <div class="mt-8 pt-6 border-t border-slate-50 flex items-center justify-center gap-2">
-                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Secure by</span>
-                <img src="https://supabase.com/dashboard/img/supabase-logo.svg" class="h-4">
-                <span class="text-[11px] font-black text-[#3ecf8e] uppercase tracking-wider">Supabase</span>
+            <div class="mt-8 pt-4 border-t border-slate-50 flex items-center justify-center gap-2">
+                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Secure by</span>
+                <img src="https://supabase.com/dashboard/img/supabase-logo.svg" class="h-3">
+                <span class="text-[10px] font-black text-[#3ecf8e] uppercase tracking-wider">Supabase</span>
             </div>
         </div>
     </div>
