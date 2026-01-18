@@ -7,40 +7,66 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@800&family=Inter:wght@400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
-        .hidden { display: none; }
+        .font-title { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen flex items-center justify-center p-4">
-    <div class="bg-white p-10 rounded-[40px] shadow-2xl max-w-md w-full border border-slate-100">
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-black text-indigo-600 uppercase tracking-tighter">Nivas Kunj</h1>
-            <p id="auth-subtitle" class="text-zinc-500 text-sm font-medium mt-1">Access your project dashboard</p>
+    <div class="bg-white p-10 rounded-[40px] shadow-2xl max-w-md w-full border border-slate-100 transition-all">
+        <div class="text-center mb-10">
+            <h1 class="text-3xl font-black text-zinc-900 tracking-tighter uppercase font-title">Nivas Kunj</h1>
+            <p id="auth-subtitle" class="text-zinc-500 text-xs font-bold mt-2 uppercase tracking-widest">Client & Admin Workspace</p>
         </div>
 
-        <div class="space-y-4">
+        <div class="space-y-5">
             <div>
-                <label class="text-[10px] font-bold text-zinc-400 uppercase ml-2 mb-1 block">Email Address</label>
-                <input type="email" id="email" placeholder="name@example.com" class="w-full p-4 bg-zinc-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium transition">
+                <label class="text-[10px] font-bold text-zinc-400 uppercase ml-2 mb-1.5 block tracking-widest">Email Address</label>
+                <input type="email" id="email" placeholder="name@email.com" 
+                    class="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition font-medium text-sm">
             </div>
 
-            <div id="password-wrapper" class="hidden">
-                <label class="text-[10px] font-bold text-zinc-400 uppercase ml-2 mb-1 block">Set Password</label>
-                <input type="password" id="password" placeholder="••••••••" class="w-full p-4 bg-zinc-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium transition">
+            <div id="password-group">
+                <div class="flex justify-between items-center ml-2 mb-1.5">
+                    <label id="password-label" class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Password</label>
+                    <button id="forgot-link" onclick="handleReset()" class="text-[9px] font-bold text-indigo-500 hover:text-indigo-700 uppercase tracking-widest">Forgot?</button>
+                </div>
+                <input type="password" id="password" placeholder="••••••••" 
+                    class="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition font-medium text-sm">
             </div>
 
-            <button id="mainBtn" class="w-full bg-zinc-900 text-white p-4 rounded-2xl font-bold uppercase tracking-widest text-xs hover:bg-indigo-600 transition shadow-xl shadow-indigo-100">
-                Send Magic Link
-            </button>
+            <div class="grid grid-cols-1 gap-3 pt-4">
+                <button id="mainBtn" class="w-full bg-zinc-900 text-white p-4 rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] hover:bg-indigo-600 transition shadow-xl shadow-zinc-100">
+                    Sign In with Password
+                </button>
+                
+                <div id="alt-methods" class="space-y-3">
+                    <div class="relative py-4">
+                        <div class="absolute inset-0 flex items-center"><span class="w-full border-t border-zinc-100"></span></div>
+                        <div class="relative flex justify-center text-[9px] uppercase font-black"><span class="bg-white px-4 text-zinc-300 tracking-[0.3em]">Alternative Access</span></div>
+                    </div>
 
-            <p id="status" class="text-center text-[11px] font-bold uppercase tracking-wide"></p>
-            
-            <div class="pt-6 border-t border-zinc-100 text-center">
-                <p id="toggle-text" class="text-xs text-zinc-400">
-                    New client? <button onclick="toggleMode('register')" class="text-indigo-600 font-bold hover:underline">Register here</button>
-                </p>
+                    <button id="magicBtn" class="w-full bg-white border border-zinc-200 text-zinc-500 p-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-zinc-50 transition hover:text-zinc-800">
+                        Send Magic Link
+                    </button>
+
+                    <button id="googleBtn" class="w-full bg-white border border-zinc-200 text-zinc-500 p-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-zinc-50 transition flex items-center justify-center gap-3 hover:text-zinc-800">
+                        <img src="https://www.google.com/favicon.ico" class="w-4 h-4 grayscale opacity-70"> Continue with Google
+                    </button>
+                </div>
             </div>
+        </div>
+
+        <p id="status" class="mt-8 text-center text-[10px] font-bold uppercase tracking-widest h-4 text-indigo-600"></p>
+        
+        <div class="mt-8 pt-6 border-t border-zinc-50 text-center">
+            <p id="toggle-text" class="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
+                New client? <button onclick="toggleMode('register')" class="text-indigo-600 ml-1 hover:underline">Register here</button>
+            </p>
+            <p class="text-[9px] font-black text-zinc-400 uppercase tracking-[0.3em] mt-6 flex items-center justify-center gap-2">
+                Powered by <span class="text-emerald-500">Supabase</span>
+            </p>
         </div>
     </div>
 
@@ -50,95 +76,142 @@
         const sb = supabase.createClient(S_URL, S_KEY);
 
         let mode = 'login';
+        const status = document.getElementById('status');
 
-        // 1. Check for invitation in URL
-        window.onload = () => {
-            const params = new URLSearchParams(window.location.search);
-            const inviteEmail = params.get('email');
-            if (inviteEmail) {
-                document.getElementById('email').value = inviteEmail;
-                toggleMode('register');
-                document.getElementById('status').innerText = "✨ Invitation Detected";
-                document.getElementById('status').className = "text-center text-[11px] font-bold uppercase text-emerald-500";
-            }
-        };
+        window.onload = async () => {
+			const params = new URLSearchParams(window.location.search);
+			const hash = window.location.hash;
+
+			// Detect if this is a Password Reset link
+			if (hash.includes("type=recovery") || hash.includes("access_token")) {
+				toggleMode('reset');
+				status.innerText = "🔑 Security Token Verified. Set your new password.";
+			} 
+			// Existing invite detection
+			else if (params.get('email')) {
+				document.getElementById('email').value = params.get('email');
+				toggleMode('register');
+			}
+		};
 
         function toggleMode(targetMode) {
-            mode = targetMode;
-            const subtitle = document.getElementById('auth-subtitle');
-            const passWrapper = document.getElementById('password-wrapper');
-            const mainBtn = document.getElementById('mainBtn');
-            const toggleArea = document.getElementById('toggle-text');
+			mode = targetMode;
+			const subtitle = document.getElementById('auth-subtitle');
+			const mainBtn = document.getElementById('mainBtn');
+			const altMethods = document.getElementById('alt-methods');
+			const toggleText = document.getElementById('toggle-text');
+			const passLabel = document.getElementById('password-label');
+			const forgotLink = document.getElementById('forgot-link');
+			
+			// FIX: Define the email container so it can be hidden/shown
+			const emailInput = document.getElementById('email');
+			const emailGroup = emailInput.parentElement;
 
-            if (mode === 'register') {
-                subtitle.innerText = "Create your secure client account";
-                passWrapper.classList.remove('hidden');
-                mainBtn.innerText = "Complete Registration";
-                toggleArea.innerHTML = `Already have an account? <button onclick="toggleMode('login')" class="text-indigo-600 font-bold">Sign In</button>`;
-            } else {
-                subtitle.innerText = "Access your project dashboard";
-                passWrapper.classList.add('hidden');
-                mainBtn.innerText = "Send Magic Link";
-                toggleArea.innerHTML = `New client? <button onclick="toggleMode('register')" class="text-indigo-600 font-bold">Register here</button>`;
-            }
-        }
+			if (mode === 'reset') {
+				subtitle.innerText = "Set your new password";
+				mainBtn.innerText = "Update Password";
+				passLabel.innerText = "New Permanent Password";
+				emailGroup.classList.add('hidden'); // Now emailGroup is defined
+				forgotLink.classList.add('hidden');
+				altMethods.classList.add('hidden');
+				toggleText.innerHTML = `<button onclick="toggleMode('login')" class="text-zinc-400 font-bold uppercase text-[9px] tracking-widest">Cancel and go back</button>`;
+			} else if (mode === 'register') {
+				subtitle.innerText = "Create your secure account";
+				mainBtn.innerText = "Complete Registration";
+				passLabel.innerText = "Set Permanent Password";
+				emailGroup.classList.remove('hidden'); // Ensure visible if coming from reset
+				forgotLink.classList.add('hidden');
+				altMethods.classList.add('hidden');
+				toggleText.innerHTML = `Already have an account? <button onclick="toggleMode('login')" class="text-indigo-600 ml-1">Sign In</button>`;
+			} else {
+				subtitle.innerText = "Client & Admin Workspace";
+				mainBtn.innerText = "Sign In with Password";
+				passLabel.innerText = "Password";
+				emailGroup.classList.remove('hidden'); // Ensure visible
+				forgotLink.classList.remove('hidden');
+				altMethods.classList.remove('hidden');
+				toggleText.innerHTML = `New client? <button onclick="toggleMode('register')" class="text-indigo-600 ml-1">Register here</button>`;
+			}
+		}
+
+        async function handleReset() {
+			const email = document.getElementById('email').value;
+			if (!email) { status.innerText = "❌ Enter email first"; return; }
+			status.innerText = "Sending Reset Email...";
+			
+			const { error } = await sb.auth.resetPasswordForEmail(email, {
+				// CHANGE THIS: Point back to index.html so it can show the Reset UI
+				redirectTo: window.location.origin + '/index.html', 
+			});
+			
+			status.innerText = error ? "❌ " + error.message : "✅ Reset link sent to inbox!";
+		}
 
         document.getElementById('mainBtn').onclick = async () => {
+			const email = document.getElementById('email').value;
+			const password = document.getElementById('password').value;
+
+			// 1. HANDLE RESET MODE (Skip email check)
+			if (mode === 'reset') {
+				if (!password || password.length < 6) {
+					status.innerText = "❌ Password must be at least 6 characters";
+					return;
+				}
+				status.innerText = "Updating...";
+				
+				const { error } = await sb.auth.updateUser({ password: password });
+				
+				if (error) {
+					status.innerText = "❌ " + error.message;
+				} else {
+					status.innerText = "✅ Password Updated! Redirecting...";
+					setTimeout(() => window.location.href = 'portal.html', 1500);
+				}
+				return; // Exit here so it doesn't run the checks below
+			}
+
+			// 2. HANDLE LOGIN/REGISTER (Requires both fields)
+			if (!email || !password) {
+				status.innerText = "❌ Email and Password required";
+				return;
+			}
+
+			status.innerText = "Processing...";
+
+			if (mode === 'register') {
+				const { error } = await sb.auth.signUp({
+					email,
+					password,
+					options: { data: { is_admin: false } }
+				});
+				if (error) status.innerText = "❌ " + error.message;
+				else {
+					status.innerText = "✅ Account Created! Redirecting...";
+					setTimeout(() => window.location.href = 'portal.html', 1500);
+				}
+			} else {
+				const { error } = await sb.auth.signInWithPassword({ email, password });
+				if (error) status.innerText = "❌ " + error.message;
+				else window.location.href = 'portal.html';
+			}
+		};
+
+        document.getElementById('magicBtn').onclick = async () => {
             const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const status = document.getElementById('status');
-            
-            if (!email) return alert("Please enter email");
+            if (!email) { status.innerText = "❌ Email required"; return; }
+            status.innerText = "Sending Link...";
+            const { error } = await sb.auth.signInWithOtp({
+                email,
+                options: { emailRedirectTo: window.location.origin + '/portal.html' }
+            });
+            status.innerText = error ? "❌ " + error.message : "✅ Check your email!";
+        };
 
-            status.innerText = "Processing...";
-            status.className = "text-center text-[11px] font-bold uppercase text-zinc-400 animate-pulse";
-
-            if (mode === 'register') {
-                // --- REGISTER FLOW ---
-                if (password.length < 6) {
-                    status.innerText = "❌ Password too short (min 6)";
-                    status.className = "text-center text-[11px] font-bold uppercase text-red-500";
-                    return;
-                }
-
-                const { data, error } = await sb.auth.signUp({
-                    email,
-                    password,
-                    options: { data: { is_admin: false } } // Hardcoded as client
-                });
-
-                if (error) {
-                    status.innerText = "❌ " + error.message;
-                    status.className = "text-center text-[11px] font-bold uppercase text-red-500";
-                } else {
-                    status.innerText = "✅ Account Created! Redirecting...";
-                    status.className = "text-center text-[11px] font-bold uppercase text-emerald-500";
-                    setTimeout(() => window.location.href = 'portal.html', 1500);
-                }
-
-            } else {
-                // --- LOGIN FLOW (Magic Link) ---
-                const { data: profile } = await sb.from('profiles').select('email').eq('email', email).single();
-
-                if (!profile) {
-                    status.innerText = "❌ Email not found. Contact Admin.";
-                    status.className = "text-center text-[11px] font-bold uppercase text-red-500";
-                    return;
-                }
-
-                const { error } = await sb.auth.signInWithOtp({
-                    email: email,
-                    options: { emailRedirectTo: window.location.origin + '/portal.html' }
-                });
-
-                if (error) {
-                    status.innerText = "❌ " + error.message;
-                    status.className = "text-center text-[11px] font-bold uppercase text-red-500";
-                } else {
-                    status.innerText = "✅ Link sent! Check email.";
-                    status.className = "text-center text-[11px] font-bold uppercase text-emerald-500";
-                }
-            }
+        document.getElementById('googleBtn').onclick = async () => {
+            await sb.auth.signInWithOAuth({
+                provider: 'google',
+                options: { redirectTo: window.location.origin + '/portal.html' }
+            });
         };
     </script>
 </body>
