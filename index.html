@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nivas Kunj | Entry</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@400;500;600&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white p-10 rounded-[40px] shadow-2xl max-w-md w-full border border-slate-100">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-black text-indigo-600 uppercase tracking-tighter">Nivas Kunj</h1>
+            <p id="auth-subtitle" class="text-zinc-500 text-sm font-medium mt-1">Access your project dashboard</p>
+        </div>
+
+        <div class="space-y-4">
+            <div>
+                <label class="text-[10px] font-bold text-zinc-400 uppercase ml-2 mb-1 block">Email Address</label>
+                <input type="email" id="email" placeholder="name@example.com" class="w-full p-4 bg-zinc-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium transition">
+            </div>
+
+            <div id="password-wrapper" class="hidden">
+                <label class="text-[10px] font-bold text-zinc-400 uppercase ml-2 mb-1 block">Set Password</label>
+                <input type="password" id="password" placeholder="••••••••" class="w-full p-4 bg-zinc-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium transition">
+            </div>
+
+            <button id="mainBtn" class="w-full bg-zinc-900 text-white p-4 rounded-2xl font-bold uppercase tracking-widest text-xs hover:bg-indigo-600 transition shadow-xl shadow-indigo-100">
+                Send Magic Link
+            </button>
+
+            <p id="status" class="text-center text-[11px] font-bold uppercase tracking-wide"></p>
+            
+            <div class="pt-6 border-t border-zinc-100 text-center">
+                <p id="toggle-text" class="text-xs text-zinc-400">
+                    New client? <button onclick="toggleMode('register')" class="text-indigo-600 font-bold hover:underline">Register here</button>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const S_URL = 'https://wbhcvcsdpdandaxidnlg.supabase.co';
+        const S_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndiaGN2Y3NkcGRhbmRheGlkbmxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NjMwMjksImV4cCI6MjA4MTUzOTAyOX0.n8R1OpFxilWbDfteODc-lyVF_qvntyRnJNVM3g9xCWs'; 
+        const sb = supabase.createClient(S_URL, S_KEY);
+
+        let mode = 'login';
+
+        // 1. Check for invitation in URL
+        window.onload = () => {
+            const params = new URLSearchParams(window.location.search);
+            const inviteEmail = params.get('email');
+            if (inviteEmail) {
+                document.getElementById('email').value = inviteEmail;
+                toggleMode('register');
+                document.getElementById('status').innerText = "✨ Invitation Detected";
+                document.getElementById('status').className = "text-center text-[11px] font-bold uppercase text-emerald-500";
+            }
+        };
+
+        function toggleMode(targetMode) {
+            mode = targetMode;
+            const subtitle = document.getElementById('auth-subtitle');
+            const passWrapper = document.getElementById('password-wrapper');
+            const mainBtn = document.getElementById('mainBtn');
+            const toggleArea = document.getElementById('toggle-text');
+
+            if (mode === 'register') {
+                subtitle.innerText = "Create your secure client account";
+                passWrapper.classList.remove('hidden');
+                mainBtn.innerText = "Complete Registration";
+                toggleArea.innerHTML = `Already have an account? <button onclick="toggleMode('login')" class="text-indigo-600 font-bold">Sign In</button>`;
+            } else {
+                subtitle.innerText = "Access your project dashboard";
+                passWrapper.classList.add('hidden');
+                mainBtn.innerText = "Send Magic Link";
+                toggleArea.innerHTML = `New client? <button onclick="toggleMode('register')" class="text-indigo-600 font-bold">Register here</button>`;
+            }
+        }
+
+        document.getElementById('mainBtn').onclick = async () => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const status = document.getElementById('status');
+            
+            if (!email) return alert("Please enter email");
+
+            status.innerText = "Processing...";
+            status.className = "text-center text-[11px] font-bold uppercase text-zinc-400 animate-pulse";
+
+            if (mode === 'register') {
+                // --- REGISTER FLOW ---
+                if (password.length < 6) {
+                    status.innerText = "❌ Password too short (min 6)";
+                    status.className = "text-center text-[11px] font-bold uppercase text-red-500";
+                    return;
+                }
+
+                const { data, error } = await sb.auth.signUp({
+                    email,
+                    password,
+                    options: { data: { is_admin: false } } // Hardcoded as client
+                });
+
+                if (error) {
+                    status.innerText = "❌ " + error.message;
+                    status.className = "text-center text-[11px] font-bold uppercase text-red-500";
+                } else {
+                    status.innerText = "✅ Account Created! Redirecting...";
+                    status.className = "text-center text-[11px] font-bold uppercase text-emerald-500";
+                    setTimeout(() => window.location.href = 'portal.html', 1500);
+                }
+
+            } else {
+                // --- LOGIN FLOW (Magic Link) ---
+                const { data: profile } = await sb.from('profiles').select('email').eq('email', email).single();
+
+                if (!profile) {
+                    status.innerText = "❌ Email not found. Contact Admin.";
+                    status.className = "text-center text-[11px] font-bold uppercase text-red-500";
+                    return;
+                }
+
+                const { error } = await sb.auth.signInWithOtp({
+                    email: email,
+                    options: { emailRedirectTo: window.location.origin + '/portal.html' }
+                });
+
+                if (error) {
+                    status.innerText = "❌ " + error.message;
+                    status.className = "text-center text-[11px] font-bold uppercase text-red-500";
+                } else {
+                    status.innerText = "✅ Link sent! Check email.";
+                    status.className = "text-center text-[11px] font-bold uppercase text-emerald-500";
+                }
+            }
+        };
+    </script>
+</body>
+</html>
