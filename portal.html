@@ -158,20 +158,21 @@
 
     <div id="lead-modal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-[400] hidden flex items-center justify-center p-4">
         <div class="bg-slate-950 w-full max-w-4xl max-h-[92vh] rounded-[40px] shadow-2xl border border-white/10 flex flex-col overflow-hidden animate-slide-up">
-            <div class="p-10 border-b border-white/10 flex justify-between items-center bg-slate-900">
-                <div>
-                    <h3 id="modal-title" class="text-3xl font-black text-white tracking-tighter uppercase">Lead Workspace</h3>
-                    <p id="modal-subtitle" class="text-slate-400 text-sm font-medium mt-1"></p>
-                </div>
-                <button onclick="closeModal()" class="w-12 h-12 flex items-center justify-center bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-500 rounded-2xl transition group">
-                    <i data-lucide="x" class="w-6 h-6"></i>
-                </button>
-            </div>
+            <div class="bg-slate-950 w-full max-w-5xl max-h-[95vh] rounded-[32px] shadow-2xl border border-white/10 flex flex-col overflow-hidden animate-slide-up">
+				<div class="p-6 border-b border-white/10 flex justify-between items-center bg-slate-900">
+					<div>
+						<h3 id="modal-title" class="text-xl font-black text-white tracking-tighter uppercase">Lead Workspace</h3>
+						<p id="modal-subtitle" class="text-slate-400 text-[10px] font-medium mt-1"></p>
+					</div>
+					<button onclick="closeModal()" class="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-red-500/20 text-slate-400 rounded-xl transition">
+						<i data-lucide="x" class="w-5 h-5"></i>
+					</button>
+				</div>
 
-            <div class="flex-1 overflow-y-auto p-10">
-                <div id="modal-body-content" class="space-y-12">
-                    </div>
-            </div>
+				<div class="flex-1 overflow-y-auto p-6">
+					<div id="modal-body-content" class="space-y-6"></div>
+				</div>
+			</div>
 
             <div class="p-10 border-t bg-slate-50/50 flex justify-end gap-6">
                 <button onclick="closeModal()" class="text-[10px] font-bold text-slate-400 hover:text-white transition uppercase tracking-widest">Close Workspace</button>
@@ -386,88 +387,108 @@
 			document.getElementById('modal-subtitle').innerText = lead.query_data;
 
 			content.innerHTML = `
-				<div class="p-8 bg-slate-900 rounded-[32px] text-white shadow-2xl">
-					<div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-[9px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-1">Security Status</p>
-                            <h4 class="text-xl font-bold tracking-tight">${isRegistered ? 'Verified Client Access' : 'External Enquiry'}</h4>
-                        </div>
-                        <div class="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
-                            <i data-lucide="${isRegistered ? 'shield-check' : 'user-plus'}" class="w-6 h-6"></i>
-                        </div>
-                    </div>
-					
-					<div class="mt-8 flex items-center justify-between p-6 bg-white/5 border border-white/10 rounded-2xl">
+				<div class="p-5 bg-slate-900 rounded-2xl text-white border border-white/5 flex items-center justify-between">
+					<div class="flex items-center gap-4">
+						<div class="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+							<i data-lucide="${isRegistered ? 'shield-check' : 'user-plus'}" class="w-5 h-5"></i>
+						</div>
 						<div>
-							<p class="text-[10px] text-white/50 font-bold uppercase tracking-widest leading-none mb-2">Registered Email</p>
-							<p class="text-base font-medium">${email}</p>
+							<p class="text-[8px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-1">Security Status</p>
+							<h4 class="text-sm font-bold">${isRegistered ? 'Verified Client' : 'External Lead'}</h4>
 						</div>
-						${!isRegistered ? 
-							`<button onclick="sendRegistrationInvite('${email}', '${customer.customer_name}')" 
-								class="px-6 py-3 bg-indigo-500 hover:bg-indigo-400 rounded-xl text-[10px] font-bold uppercase tracking-widest transition">
-								Send Invite
-							</button>` : `<span class="text-emerald-400 text-[10px] font-black uppercase tracking-widest">Active</span>`
-						}
+					</div>
+					<div class="text-right">
+						<p class="text-[8px] text-white/40 font-bold uppercase tracking-widest mb-1">Linked Email</p>
+						<p class="text-xs font-medium">${email}</p>
 					</div>
 				</div>
 
-				<div class="space-y-10">
-					<div class="grid grid-cols-1 md:grid-cols-3 gap-6 p-10 bg-slate-900/40 rounded-[40px] border border-white/5">
-						<div class="space-y-2">
-							<label class="text-[9px] font-black text-slate-700 uppercase tracking-widest ml-1">Customer Name</label>
-							<input id="edit-name" type="text" value="${customer?.customer_name || ''}" 
-							class="w-full px-6 py-4 bg-slate-950 border border-white/10 rounded-2xl text-sm font-bold text-white outline-none focus:ring-2 focus:ring-indigo-500 transition shadow-sm">
-						</div>
-						<div class="space-y-2">
-							<label class="text-[9px] font-black text-slate-700 uppercase tracking-widest ml-1">Contact Number</label>
-							<input id="edit-phone" type="text" value="${customer?.phone_number || ''}" class="w-full px-6 py-4 bg-slate-950 border border-white/10 rounded-2xl text-sm font-bold text-white outline-none focus:ring-2 focus:ring-indigo-500 transition shadow-sm">
-						</div>
-						<div class="space-y-2">
-							<label class="text-[9px] font-black text-slate-700 uppercase tracking-widest ml-1">Pipeline Status</label>
-							<select id="edit-status" class="w-full px-6 py-4 bg-slate-950 border border-white/10 rounded-2xl text-sm font-bold text-white outline-none focus:ring-2 focus:ring-indigo-500 transition shadow-sm">
-								${statRes.data.map(s => `<option value="${s.status_id}" ${details?.status_id === s.status_id ? 'selected' : ''}>${s.status_details}</option>`).join('')}
-							</select>
+				<div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 bg-slate-900/40 rounded-2xl border border-white/5">
+					<div class="space-y-1.5">
+						<label class="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">Customer Name</label>
+						<input id="edit-name" type="text" value="${customer?.customer_name || ''}" 
+						class="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-xs font-bold text-white outline-none focus:ring-1 focus:ring-indigo-500">
+					</div>
+					<div class="space-y-1.5">
+						<label class="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">Phone Number</label>
+						<input id="edit-phone" type="text" value="${customer?.phone_number || ''}" 
+						class="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-xs font-bold text-white outline-none focus:ring-1 focus:ring-indigo-500">
+					</div>
+					<div class="space-y-1.5">
+						<label class="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">Pipeline Status</label>
+						<select id="edit-status" class="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-xs font-bold text-white outline-none focus:ring-1 focus:ring-indigo-500">
+							${statRes.data.map(s => `<option value="${s.status_id}" ${details?.status_id === s.status_id ? 'selected' : ''}>${s.status_details}</option>`).join('')}
+						</select>
+					</div>
+				</div>
+				
+				${getQuoteHTML(quote, images)}
+
+				<div class="space-y-4">
+					<div class="flex items-center justify-between px-2">
+						<h4 class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Interaction History</h4>
+						<div class="flex gap-2 w-2/3">
+							<input id="new-comment" placeholder="Log internal note..." class="flex-1 px-4 py-2 bg-slate-900 border border-white/10 rounded-xl text-xs text-white outline-none">
+							<button onclick="addComment('${leadId}')" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase hover:bg-indigo-500 transition">Post</button>
 						</div>
 					</div>
 					
-					${getQuoteHTML(quote, images)}
-
-					<div id="onboarding-zone" class="p-12 border-2 border-dashed border-slate-200 rounded-[48px] text-center bg-slate-50/50">
-						${details?.is_project ? `
-							<div class="flex flex-col items-center gap-4">
-								<div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-2">
-									<i data-lucide="check-circle" class="w-8 h-8"></i>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-2">
+						${commRes.data?.length > 0 ? commRes.data.map(c => `
+							<div class="p-4 bg-white/5 border border-white/5 rounded-xl">
+								<div class="flex justify-between items-center mb-1">
+									<span class="text-[8px] font-black text-indigo-400 uppercase tracking-widest">${c.org_comments || 'Note'}</span>
+									<span class="text-[8px] text-slate-500 font-medium">${new Date(c.created_at).toLocaleDateString()}</span>
 								</div>
-								<h4 class="text-base font-black text-white uppercase tracking-tighter">Project Live</h4>
-								<p class="text-[10px] text-slate-400 font-mono tracking-widest uppercase">ID: ${details.project_id}</p>
+								<p class="text-[11px] text-slate-300 leading-snug">${c.comments}</p>
 							</div>
-						` : `
-							<button onclick="searchSiblingsForOnboarding('${leadId}', '${email}')" class="px-12 py-5 bg-slate-900 text-white rounded-[20px] text-[10px] font-black uppercase tracking-[0.3em] hover:bg-indigo-600 transition shadow-2xl">
-								Onboard to Active Project
-							</button>
-						`}
-					</div>
-
-					<div class="space-y-6">
-						<h4 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2">History & Interaction</h4>
-						<div class="flex gap-4">
-							<input id="new-comment" placeholder="Log a note or internal comment..." class="flex-1 px-8 py-5 bg-slate-100 border-none rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 transition">
-							<button onclick="addComment('${leadId}')" class="px-10 py-5 bg-indigo-50 text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition shadow-sm">Post</button>
-						</div>
-						<div class="space-y-4 max-h-80 overflow-y-auto pr-4">
-							${commRes.data?.length > 0 ? commRes.data.map(c => `
-								<div class="p-6 bg-white border border-slate-100 rounded-[28px] shadow-sm">
-									<div class="flex justify-between items-center mb-3">
-										<span class="text-[9px] font-black text-indigo-500 uppercase tracking-widest">${c.org_comments || 'Admin Note'}</span>
-										<span class="text-[9px] text-slate-400 font-bold">${new Date(c.created_at).toLocaleString()}</span>
-									</div>
-									<p class="text-sm text-slate-600 leading-relaxed font-medium">${c.comments}</p>
-								</div>
-							`).join('') : '<p class="text-xs text-slate-400 italic text-center py-10">No interactions recorded yet.</p>'}
-						</div>
+						`).join('') : '<p class="text-[10px] text-slate-500 italic col-span-2 text-center py-4">No interactions recorded.</p>'}
 					</div>
 				</div>
-			`;
+			
+				${details?.is_project ? `
+					<div class="mt-8 p-5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between">
+						<div class="flex items-center gap-3">
+							<div class="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+								<i data-lucide="check-circle" class="w-5 h-5"></i>
+							</div>
+							<div>
+								<h4 class="text-xs font-black text-white uppercase tracking-tight">Active Project Linked</h4>
+								<p class="text-[9px] text-emerald-300/60 font-medium">Project ID: ${details.project_id.slice(0,8)}... is live.</p>
+							</div>
+						</div>
+						<span class="px-4 py-2 bg-emerald-500 text-white text-[9px] font-black uppercase rounded-lg">Live</span>
+					</div>
+				` : `
+					<div id="onboarding-zone" class="mt-8">
+						<div class="p-5 bg-indigo-600/10 border border-indigo-500/20 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+							<div class="flex items-center gap-3">
+								<div class="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+									<i data-lucide="layers" class="w-5 h-5"></i>
+								</div>
+								<div>
+									<h4 class="text-xs font-black text-white uppercase tracking-tight">Cluster Management</h4>
+									<p class="text-[9px] text-indigo-300/60 font-medium">Scan for other enquiries from this client to group them.</p>
+								</div>
+							</div>
+							<button onclick="searchSiblingsForOnboarding('${leadId}', '${email}')" 
+								class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-indigo-500/20">
+								Scan for Related Items
+							</button>
+						</div>
+					</div>
+				`}
+
+				${(!isRegistered && !details?.is_project) ? `
+				<div class="mt-3 px-4 py-3 bg-white/5 border border-white/5 rounded-xl flex items-center justify-between">
+					<p class="text-[9px] text-slate-400 font-medium">Client hasn't joined the portal yet.</p>
+					<button onclick="sendRegistrationInvite('${email}', '${customer?.customer_name}')" 
+						class="text-[9px] font-black text-indigo-400 uppercase tracking-widest hover:text-white transition">
+						Send Invite &rarr;
+					</button>
+				</div>
+				` : ''}
+			`; // End of content.innerHTML template
 			lucide.createIcons();
 			document.getElementById('save-btn').onclick = () => saveLeadChanges(leadId);
 		}
@@ -492,55 +513,59 @@
 
 		async function searchSiblingsForOnboarding(primaryId, email) {
 			const zone = document.getElementById('onboarding-zone');
-			zone.innerHTML = `<div class="py-10 animate-pulse text-slate-400 text-[10px] font-black uppercase">Scanning Cluster...</div>`;
+			zone.innerHTML = `<div class="py-10 animate-pulse text-slate-400 text-[10px] font-black uppercase tracking-widest text-center">Scanning Cluster...</div>`;
 
 			try {
 				const { data: customerEntries } = await sb.from('customer_details').select('enquiry_id').eq('email_id', email);
 				const allEnquiryIds = customerEntries.map(ce => ce.enquiry_id);
-				const { data: siblings } = await sb.from('raw_enquiries').select(`id, created_at, query_data, customer_details(customer_name, phone_number, email_id)`).in('id', allEnquiryIds);
+				const { data: siblings } = await sb.from('raw_enquiries')
+					.select(`id, created_at, query_data, customer_details(customer_name)`)
+					.in('id', allEnquiryIds);
 
 				const otherLeads = siblings.filter(s => s.id !== primaryId);
 
 				zone.innerHTML = `
-					<div class="text-left bg-white p-10 rounded-[40px] border border-slate-200 shadow-xl">
-						<div class="flex justify-between items-center mb-8">
+					<div class="text-left bg-slate-900/50 p-6 rounded-2xl border border-white/10 shadow-xl">
+						<div class="flex justify-between items-center mb-6">
 							<div>
-								<h4 class="text-lg font-black text-white tracking-tight uppercase">Cluster Identification</h4>
-								<p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Found ${otherLeads.length} related records</p>
+								<h4 class="text-xs font-black text-white tracking-tight uppercase">Cluster Identification</h4>
+								<p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">Found ${otherLeads.length} related records for this email</p>
 							</div>
-							<button onclick="toggleAllSiblings(this)" class="px-6 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[9px] font-black text-indigo-600 uppercase tracking-widest">Select All</button>
+							<button onclick="toggleAllSiblings(this)" class="px-4 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[8px] font-black text-indigo-400 uppercase hover:bg-white/10 transition">Select All</button>
 						</div>
 
-						<div class="space-y-4 max-h-80 overflow-y-auto mb-10 pr-2">
-							<div class="p-6 bg-slate-900 rounded-2xl flex items-center gap-6 opacity-80">
-								<input type="checkbox" checked disabled class="w-5 h-5 accent-indigo-400">
-								<div class="flex-1 grid grid-cols-3 gap-6 text-[10px] font-bold text-white uppercase tracking-widest items-center">
-									<span>Primary Lead</span>
-									<span class="truncate opacity-50 font-mono">${primaryId.slice(0,12)}...</span>
-									<span class="text-right text-indigo-400">Master</span>
+						<div class="space-y-2 max-h-48 overflow-y-auto mb-6 pr-2 custom-scrollbar">
+							<div class="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center gap-4">
+								<input type="checkbox" checked disabled class="w-4 h-4 accent-indigo-400 opacity-50">
+								<div class="flex-1 grid grid-cols-2 text-[9px] font-bold text-white uppercase tracking-widest items-center">
+									<span class="truncate">Current Master Lead</span>
+									<span class="text-right text-indigo-400">Primary</span>
 								</div>
 							</div>
 
 							${otherLeads.map(s => `
-								<div class="p-6 bg-slate-50 border border-slate-100 rounded-2xl flex items-center gap-6 hover:border-indigo-300 transition group">
-									<input type="checkbox" class="sibling-checkbox w-5 h-5 accent-indigo-600" value="${s.id}" checked>
-									<div class="flex-1 grid grid-cols-3 gap-6 text-[10px] font-bold text-white uppercase tracking-widest items-center">
-										<span class="truncate">${s.customer_details?.[0]?.customer_name || 'Anonymous'}</span>
-										<span class="truncate font-mono text-slate-400">${s.id.slice(0,12)}...</span>
-										<span class="text-right text-slate-400 group-hover:text-indigo-600">${new Date(s.created_at).toLocaleDateString()}</span>
+								<div class="p-3 bg-white/5 border border-white/5 rounded-xl flex items-center gap-4 hover:border-indigo-500/30 transition group">
+									<input type="checkbox" class="sibling-checkbox w-4 h-4 accent-indigo-600" value="${s.id}" checked>
+									<div class="flex-1 grid grid-cols-2 text-[9px] font-bold text-slate-300 uppercase tracking-widest items-center">
+										<span class="truncate">Enquiry: ${new Date(s.created_at).toLocaleDateString()}</span>
+										<span class="text-right text-slate-500 group-hover:text-indigo-400">ID: ${s.id.slice(0,8)}</span>
 									</div>
 								</div>
 							`).join('')}
 						</div>
 
-						<div class="flex justify-center">
-							<button onclick="executeBulkOnboarding('${primaryId}', '${email}')" class="px-14 py-5 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-700 transition shadow-2xl">
+						<div class="flex flex-col gap-3">
+							<input id="project-name" type="text" placeholder="Assign Global Project Name..." 
+								class="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-[11px] font-bold text-white outline-none focus:ring-1 focus:ring-indigo-500">
+							<button onclick="executeBulkOnboarding('${primaryId}', '${email}')" 
+								class="w-full py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-indigo-500 transition shadow-lg shadow-indigo-500/20">
 								Confirm & Launch Project
 							</button>
 						</div>
 					</div>
 				`;
-			} catch (err) { zone.innerHTML = "Error finding cluster"; }
+				lucide.createIcons();
+			} catch (err) { zone.innerHTML = `<p class="text-[9px] text-red-400 text-center uppercase font-black">Cluster Scan Failed</p>`; }
 		}
 		
 		async function executeBulkOnboarding(primaryId, email) {
@@ -602,39 +627,31 @@
 		function getQuoteHTML(q, images) {
 			if (!q) return '';
 			return `
-                <div class="space-y-6">
-                    <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2">Specifications</h4>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                        <div class="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm">
-                            <p class="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Flat Configuration</p>
-                            <p class="text-sm font-black text-white">${q.flat_type}</p>
-                        </div>
-                        <div class="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm">
-                            <p class="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Bedrooms</p>
-                            <p class="text-sm font-black text-white">${q.bedrooms}</p>
-                        </div>
-                        <div class="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm">
-                            <p class="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Area Dimension</p>
-                            <p class="text-sm font-black text-white">${q.area_sqft} SQFT</p>
-                        </div>
-                        <div class="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm">
-                            <p class="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Tier Package</p>
-                            <p class="text-sm font-black text-indigo-600">${q.package}</p>
-                        </div>
-                    </div>
-                    ${images.length > 0 ? `
-                        <div class="mt-6">
-                            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-2">Property Assets</p>
-                            <div class="flex gap-4 overflow-x-auto pb-4">
-                                ${images.map(img => `
-                                    <a href="${img.image_url}" target="_blank" class="flex-shrink-0">
-                                        <img src="${img.image_url}" class="h-32 w-32 object-cover rounded-[20px] border border-slate-200 hover:scale-105 transition duration-500">
-                                    </a>
-                                `).join('')}
-                            </div>
-                        </div>
-                    ` : ''}
-                </div>
+				<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+					<div class="p-4 bg-slate-900/50 border border-white/5 rounded-2xl">
+						<p class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Flat Type</p>
+						<p class="text-xs font-bold text-white">${q.flat_type}</p>
+					</div>
+					<div class="p-4 bg-slate-900/50 border border-white/5 rounded-2xl">
+						<p class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Bedrooms</p>
+						<p class="text-xs font-bold text-white">${q.bedrooms} BHK</p>
+					</div>
+					<div class="p-4 bg-slate-900/50 border border-white/5 rounded-2xl">
+						<p class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Area</p>
+						<p class="text-xs font-bold text-white">${q.area_sqft} Sqft</p>
+					</div>
+					<div class="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl">
+						<p class="text-[7px] font-black text-indigo-400 uppercase tracking-widest mb-1">Package</p>
+						<p class="text-xs font-bold text-indigo-300">${q.package}</p>
+					</div>
+				</div>
+				${images.length > 0 ? `
+					<div class="flex gap-2 overflow-x-auto py-2 scrollbar-hide">
+						${images.map(img => `
+							<img src="${img.image_url}" class="h-16 w-16 object-cover rounded-lg border border-white/10 flex-shrink-0">
+						`).join('')}
+					</div>
+				` : ''}
 			`;
 		}
 
@@ -713,6 +730,46 @@
 		function closeModal() { document.getElementById('lead-modal').classList.add('hidden'); }
 		async function handleLogout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
         lucide.createIcons();
+		
+		
+		async function createActiveProject(leadId, email) {
+			const projectName = document.getElementById('project-name').value;
+			if (!projectName.trim()) {
+				alert("Please enter a Project Name");
+				return;
+			}
+
+			try {
+				const newProjectId = crypto.randomUUID();
+				
+				// 1. Create the Project record
+				const { error: pError } = await sb.from('projects').insert({
+					id: newProjectId,
+					enquiry_id: leadId,
+					project_name: projectName.trim(),
+					current_phase: 'Onboarding',
+					client_email: email
+				});
+
+				if (pError) throw pError;
+
+				// 2. Update Enquiry Details to lock the record
+				const { error: dError } = await sb.from('enquiry_details').update({ 
+					project_id: newProjectId, 
+					is_project: true, 
+					status_id: 5 // Converted/Active Status
+				}).eq('enquiry_id', leadId);
+
+				if (dError) throw dError;
+
+				alert("Project Launched Successfully!");
+				manageLead(leadId); // Refresh the modal view immediately
+				fetchAdminData();   // Refresh the background pipeline
+			} catch (err) {
+				console.error(err);
+				alert("Launch failed. Please check if a project name already exists or try again.");
+			}
+		}
     </script>
 </body>
 </html>
