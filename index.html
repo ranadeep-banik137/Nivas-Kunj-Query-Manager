@@ -194,14 +194,14 @@
                 if (password !== confirm) { status.innerText = "❌ Keys do not match"; return; }
                 const { error } = await sb.auth.updateUser({ password });
                 if (error) status.innerText = "❌ " + error.message;
-                else { status.innerText = "✅ Success!"; setTimeout(() => window.location.href='portal.html', 1500); }
+                else { status.innerText = "✅ Success!"; setTimeout(() => toggleMode('login'), 2000); }
             } else if (mode === 'reset') {
                 const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/index.html' });
                 status.innerText = error ? "❌ " + error.message : "✅ Link Sent!";
             } else if (mode === 'register') {
                 const { error } = await sb.auth.signUp({ email, password });
                 if (error) status.innerText = "❌ " + error.message;
-                else { status.innerText = "✅ Account Created!"; setTimeout(() => window.location.href='portal.html', 1500); }
+                else { status.innerText = "✅ Account Created!"; setTimeout(() => toggleMode('login'), 2000); }
             } else {
                 const { error } = await sb.auth.signInWithPassword({ email, password });
                 if (error) status.innerText = "❌ Login Failed";
