@@ -68,6 +68,35 @@
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+		/* Modern scrollbar for the Discussion Modal */
+		.custom-scrollbar::-webkit-scrollbar {
+			width: 4px;
+		}
+		.custom-scrollbar::-webkit-scrollbar-track {
+			background: rgba(255, 255, 255, 0.02);
+			border-radius: 10px;
+		}
+		.custom-scrollbar::-webkit-scrollbar-thumb {
+			background: rgba(99, 102, 241, 0.2);
+			border-radius: 10px;
+		}
+		.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+			background: rgba(99, 102, 241, 0.5);
+		}
+		/* Chat Bubble Styling */
+		.custom-scrollbar {
+			scroll-behavior: smooth;
+		}
+
+		/* Add a slight entrance animation to bubbles */
+		.flex.justify-start, .flex.justify-end {
+			animation: bubbleFadeIn 0.3s ease-out forwards;
+		}
+
+		@keyframes bubbleFadeIn {
+			from { opacity: 0; transform: translateY(10px); }
+			to { opacity: 1; transform: translateY(0); }
+		}
     </style>
 </head>
 <body>
@@ -181,37 +210,39 @@
         </div>
     </div>
 
-    <div id="client-view" class="hidden min-h-screen bg-[#020617]">
-        <nav class="h-20 nav-blur px-8 lg:px-12 flex items-center justify-between sticky top-0 z-50">
-            <div class="flex items-center gap-4">
-                <div class="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                    <img src="https://github.com/ranadeep-banik137/NivasKunjInteriors/blob/main/logo%20transparent%20PNG.png?raw=true" class="h-6 w-auto" alt="Logo">
-                </div>
-                <div>
-                    <h1 class="font-bold text-sm tracking-tighter text-white uppercase leading-none">Nivas Kunj</h1>
-                    <p class="text-[8px] font-black text-indigo-600 uppercase tracking-widest mt-1">Client Workspace</p>
-                </div>
-            </div>
+    <div id="client-view" class="hidden min-h-screen bg-[#020617] text-white">
+		<nav class="h-20 border-b border-white/5 bg-slate-900/50 backdrop-blur-xl px-8 flex items-center justify-between sticky top-0 z-50">
+			<div class="flex items-center gap-4">
+				<div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+					<img src="https://github.com/ranadeep-banik137/NivasKunjInteriors/blob/main/logo%20transparent%20PNG.png?raw=true" class="h-6 w-auto" alt="Logo">
+				</div>
+				<div>
+					<h1 class="font-bold text-sm tracking-tighter uppercase leading-none">Nivas Kunj</h1>
+					<p class="text-[8px] font-black text-indigo-400 uppercase tracking-widest mt-1">Client Activity Portal</p>
+				</div>
+			</div>
 
-            <div class="flex items-center gap-3">
-                <div class="hidden md:flex items-center gap-3 px-4 py-2 bg-slate-900/50 border border-white/10 rounded-2xl">
-                    <div class="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400">
-                        <i data-lucide="shield-check" class="w-4 h-4"></i>
-                    </div>
-                    <div class="flex flex-col items-start">
-                        <span class="text-[8px] font-black text-slate-500 uppercase tracking-tighter leading-none">Status</span>
-                        <span class="text-[10px] font-bold text-indigo-400 uppercase">Verified Client</span>
-                    </div>
-                </div>
-                <button onclick="handleLogout()" class="w-11 h-11 flex items-center justify-center rounded-2xl bg-slate-900 text-white hover:bg-red-600 transition-all shadow-lg">
-                    <i data-lucide="log-out" class="w-5 h-5"></i>
-                </button>
-            </div>
-        </nav>
-        
-        <main class="max-w-7xl mx-auto px-8 lg:px-12 py-12">
-            </main>
-    </div>
+			<div class="flex items-center gap-6">
+				<div class="hidden md:block text-right">
+					<p id="client-display-email" class="text-[10px] font-bold text-slate-400 italic"></p>
+					<p class="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Logged In</p>
+				</div>
+				<button onclick="handleLogout()" class="w-11 h-11 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 hover:bg-red-500/20 hover:text-red-500 transition-all">
+					<i data-lucide="log-out" class="w-5 h-5"></i>
+				</button>
+			</div>
+		</nav>
+
+		<main class="max-w-6xl mx-auto px-8 py-12">
+			<header class="mb-12">
+				<h2 class="text-4xl font-black tracking-tighter uppercase mb-2">Activity Log</h2>
+				<p class="text-slate-500 text-xs font-medium uppercase tracking-widest">Tracking your architectural enquiries & design requests</p>
+			</header>
+
+			<div id="client-activity-content" class="space-y-4">
+				</div>
+		</main>
+	</div>
 
     <script>	
 		let allLeads = []; // Holds all fetched data
@@ -676,101 +707,78 @@
 		}
 
 		async function initializeClientDashboard(email) {
-			const main = document.querySelector('#client-view main');
-			main.innerHTML = `<div class="py-20 text-center animate-pulse text-slate-400 font-bold text-[10px] uppercase tracking-[0.3em]">Syncing Luxury Workspace...</div>`;
+			const container = document.getElementById('client-activity-content');
+			document.getElementById('client-display-email').innerText = email;
 			
-			// 1. Fetch the project
-			const { data: project, error: pError } = await sb.from('projects')
-				.select('*')
-				.eq('client_email', email)
-				.maybeSingle();
+			container.innerHTML = `<div class="py-20 text-center animate-pulse text-slate-500 font-bold text-[10px] uppercase tracking-[0.3em]">Mapping Database Records...</div>`;
 
-			if (pError || !project) {
-				main.innerHTML = `
-					<div class="glass-panel p-16 rounded-[48px] text-center max-w-2xl mx-auto mt-20">
-						<div class="w-20 h-20 bg-indigo-500/10 rounded-3xl flex items-center justify-center mx-auto mb-8 border border-indigo-500/20">
-							<i data-lucide="clock" class="w-10 h-10 text-indigo-400"></i>
-						</div>
-						<h2 class="text-3xl font-black text-white mb-4 tracking-tighter uppercase">Workspace Pending</h2>
-						<p class="text-slate-400 leading-relaxed font-medium text-sm">Your design journey is being prepared. Check back once notified by our team.</p>
-					</div>`;
-				lucide.createIcons();
-				return;
-			}
+			try {
+				// 1. Fetch enquiry IDs for this email
+				const { data: customerRecords } = await sb.from('customer_details').select('enquiry_id').eq('email_id', email);
+				
+				if (!customerRecords || customerRecords.length === 0) {
+					container.innerHTML = `<div class="p-20 glass-panel rounded-[40px] text-center text-slate-500 uppercase font-bold text-xs tracking-widest border border-dashed border-white/10">No activities found for this account.</div>`;
+					return;
+				}
 
-			// 2. Fetch Linked Enquiries with correct mapping
-			const { data: enquiries } = await sb.from('enquiry_details')
-				.select('*, raw_enquiries!inner(query_data, created_at)')
-				.eq('project_id', project.id);
+				const enquiryIds = customerRecords.map(r => r.enquiry_id);
 
-			main.innerHTML = `
-				<div class="max-w-6xl mx-auto space-y-10">
-					<div class="relative overflow-hidden bg-slate-900 p-12 rounded-[56px] text-white border border-white/5 shadow-2xl">
-						<div class="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 blur-[100px] -mr-32 -mt-32"></div>
-						<div class="relative z-10 flex flex-col md:row justify-between items-start md:items-center gap-6">
-							<div>
-								<p class="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400 mb-3">Active Environment</p>
-								<h2 class="text-5xl font-black tracking-tighter leading-none">${project.project_name}</h2>
-								<p class="text-slate-400 text-xs font-medium mt-4 flex items-center gap-2">
-									<i data-lucide="calendar" class="w-3 h-3"></i> Project Start: ${new Date(project.created_at).toLocaleDateString()}
-								</p>
-							</div>
-							<div class="flex flex-col items-end gap-3">
-								<span class="px-6 py-2.5 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/40">
-									Phase: ${project.current_phase}
-								</span>
-								<p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Workspace ID: ${project.id.slice(0,8)}</p>
-							</div>
-						</div>
-					</div>
+				// 2. Parallel Fetch: Raw Data, Status IDs, and Status Definitions
+				const [rawRes, detailRes, statusDefRes] = await Promise.all([
+					sb.from('raw_enquiries').select('*').in('id', enquiryIds).order('created_at', { ascending: false }),
+					sb.from('enquiry_details').select('enquiry_id, status_id').in('enquiry_id', enquiryIds),
+					sb.from('enquiry_status').select('*')
+				]);
 
-					<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-						<div class="md:col-span-2 glass-panel p-10 rounded-[48px]">
-							<div class="flex items-center gap-3 mb-8">
-								<i data-lucide="clipboard-list" class="w-5 h-5 text-indigo-400"></i>
-								<h4 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Design Requirements Log</h4>
-							</div>
-							<div class="space-y-4">
-								${enquiries && enquiries.length > 0 ? enquiries.map(e => `
-									<div class="p-6 bg-slate-950/50 rounded-[24px] border border-white/5 hover:border-indigo-500/30 transition-all">
-										<div class="flex justify-between items-center mb-3">
-											<span class="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Requirement #${e.enquiry_id.slice(0,4)}</span>
-											<span class="text-[9px] text-slate-500 font-bold font-mono">
-												${new Date(e.raw_enquiries.created_at).toLocaleDateString()}
-											</span>
-										</div>
-										<p class="text-sm text-slate-300 font-medium leading-relaxed italic">"${e.raw_enquiries.query_data}"</p>
+				const statusMap = statusDefRes.data.reduce((acc, s) => {
+					acc[s.status_id] = s.status_details;
+					return acc;
+				}, {});
+
+				// 3. Render Activity Rows
+				container.innerHTML = rawRes.data.map(item => {
+					const detail = detailRes.data?.find(d => d.enquiry_id === item.id);
+					const statusLabel = statusMap[detail?.status_id] || 'Pending Review';
+					
+					// Color coding logic based on status_id
+					let statusColor = 'text-slate-400 bg-slate-400/10 border-slate-400/20';
+					if (detail?.status_id === 1) statusColor = 'text-indigo-400 bg-indigo-400/10 border-indigo-400/20'; // New
+					if (detail?.status_id === 5) statusColor = 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20'; // Onboarded
+
+					return `
+						<div class="glass-panel group p-6 rounded-3xl border border-white/5 hover:border-white/10 transition-all flex flex-col md:flex-row items-center justify-between gap-6">
+							<div class="flex items-center gap-6 flex-1">
+								<div class="w-12 h-12 rounded-2xl bg-slate-900 border border-white/10 flex items-center justify-center text-indigo-400">
+									<i data-lucide="${item.is_quote ? 'file-text' : 'message-square'}" class="w-6 h-6"></i>
+								</div>
+								<div>
+									<div class="flex items-center gap-3 mb-1">
+										<span class="text-[10px] font-black uppercase tracking-widest ${item.is_quote ? 'text-amber-500' : 'text-indigo-400'}">
+											${item.is_quote ? 'Quote Request' : 'General Enquiry'}
+										</span>
+										<span class="text-[8px] text-slate-500 font-bold uppercase tracking-tighter">${new Date(item.created_at).toLocaleString()}</span>
 									</div>
-								`).join('') : `
-									<div class="py-10 text-center text-slate-600 text-[10px] font-black uppercase italic tracking-widest">No detailed logs found.</div>
-								`}
-							</div>
-						</div>
-
-						<div class="space-y-6">
-							<div class="bg-indigo-600 p-10 rounded-[48px] shadow-xl text-center text-white relative overflow-hidden group">
-								<div class="absolute inset-0 bg-black/20 translate-y-full group-hover:translate-y-0 transition-transform"></div>
-								<div class="relative z-10">
-									<div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-6 backdrop-blur-md">
-										<i data-lucide="sparkles" class="w-8 h-8"></i>
-									</div>
-									<h4 class="text-lg font-black tracking-tight uppercase leading-tight">Assets<br>Incoming</h4>
-									<p class="text-[10px] text-white/70 mt-4 font-medium leading-relaxed uppercase tracking-wider">Luxury renders & site plans are being finalized.</p>
+									<h3 class="text-sm font-bold text-slate-200 line-clamp-1 italic">"${item.query_data}"</h3>
 								</div>
 							</div>
 
-							<div class="glass-panel p-8 rounded-[40px] border-dashed border-white/10">
-								<h5 class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-4">Studio Support</h5>
-								<p class="text-[11px] text-slate-400 font-medium mb-4">Request a direct revision or meeting with the architect.</p>
-								<a href="mailto:design@nivaskunj.com" class="block w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[9px] font-black text-center text-white uppercase tracking-widest transition">
-									Contact Architect
-								</a>
+							<div class="flex items-center gap-4">
+								<span class="px-4 py-1.5 rounded-xl border ${statusColor} text-[9px] font-black uppercase tracking-widest">
+									${statusLabel}
+								</span>
+								<button onclick="viewClientComments('${item.id}')" class="px-5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">
+									Discussion Board
+								</button>
 							</div>
 						</div>
-					</div>
-				</div>
-			`;
-			lucide.createIcons();
+					`;
+				}).join('');
+
+				lucide.createIcons();
+			} catch (err) {
+				console.error(err);
+				container.innerHTML = `<div class="text-red-400 text-xs font-bold uppercase">Database Sync Error</div>`;
+			}
 		}
 
         function toggleAllSiblings(btn) {
@@ -829,6 +837,77 @@
 			} catch (err) {
 				console.error(err);
 				alert("Launch failed. Please check if a project name already exists or try again.");
+			}
+		}
+		
+		async function viewClientComments(enquiryId) {
+			const modal = document.getElementById('lead-modal');
+			const content = document.getElementById('modal-body-content');
+			const title = document.getElementById('modal-title');
+			const subtitle = document.getElementById('modal-subtitle');
+			
+			modal.classList.remove('hidden');
+			title.innerText = "Discussion Board";
+			subtitle.innerText = "Project Conversation Profile";
+			content.innerHTML = `<div class="py-10 text-center animate-pulse text-slate-500 text-[10px] font-bold uppercase tracking-widest">Opening Secure Channel...</div>`;
+
+			try {
+				const { data: comments, error } = await sb
+					.from('enquiry_comments')
+					.select('*')
+					.eq('enquiry_id', enquiryId)
+					.order('created_at', { ascending: true }); // Changed to Ascending for natural chat flow
+
+				if (error) throw error;
+
+				if (!comments || comments.length === 0) {
+					content.innerHTML = `<div class="text-center py-20 text-slate-600 text-[10px] font-black uppercase tracking-widest italic">No messages exchanged yet.</div>`;
+					lucide.createIcons();
+					return;
+				}
+
+				content.innerHTML = `
+					<div class="flex flex-col gap-6 max-h-[65vh] overflow-y-auto pr-4 custom-scrollbar p-2">
+						${comments.map(c => {
+							const isCompany = c.org_comments && c.org_comments.trim() !== "";
+							const messageText = isCompany ? c.org_comments : c.comments;
+							
+							return `
+								<div class="flex ${isCompany ? 'justify-start' : 'justify-end'} w-full">
+									<div class="max-w-[85%] md:max-w-[70%] flex flex-col ${isCompany ? 'items-start' : 'items-end'}">
+										<div class="flex items-center gap-2 mb-1.5 px-1">
+											${isCompany ? '<span class="text-[7px] font-black text-indigo-400 uppercase tracking-widest">Nivas Kunj Studio</span>' : ''}
+											<span class="text-[7px] text-slate-500 font-bold">${new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+											${!isCompany ? '<span class="text-[7px] font-black text-emerald-500 uppercase tracking-widest">You</span>' : ''}
+										</div>
+
+										<div class="${isCompany 
+											? 'bg-slate-900 border border-white/10 text-slate-200 rounded-2xl rounded-tl-none' 
+											: 'bg-indigo-600 text-white rounded-2xl rounded-tr-none shadow-lg shadow-indigo-500/10'} 
+											p-4 text-xs font-medium leading-relaxed">
+											${messageText}
+										</div>
+										
+										<span class="text-[6px] text-slate-600 mt-1 uppercase font-bold tracking-tighter">
+											${new Date(c.created_at).toLocaleDateString()}
+										</span>
+									</div>
+								</div>
+							`;
+						}).join('')}
+					</div>
+				`;
+				
+				// Auto-scroll to bottom of chat
+				setTimeout(() => {
+					const container = content.querySelector('.custom-scrollbar');
+					if (container) container.scrollTop = container.scrollHeight;
+				}, 100);
+
+				lucide.createIcons();
+			} catch (err) {
+				console.error(err);
+				content.innerHTML = `<p class="text-red-400 text-center text-[10px] font-black uppercase py-10">Sync Failed</p>`;
 			}
 		}
     </script>
