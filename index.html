@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nivas Kunj | Luxury Entry</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@400;500;600;700&display=swap');
+        
+        :root {
+            font-size: 12px; 
+        }
+
+        body, html { 
+            height: 100vh; 
+            margin: 0; 
+            font-family: 'Inter', sans-serif; 
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .full-screen-bg {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #020617 0%, #1e1b4b 30%, #312e81 60%, #1e1b4b 100%);
+            z-index: -1;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(15px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            max-width: 360px; 
+        }
+
+        .hidden { display: none !important; }
+        .font-title { font-family: 'Plus Jakarta Sans', sans-serif; }
+        
+        .fade-in { animation: fadeIn 1s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        #googleBtn:hover { border-color: #4285F4; color: #4285F4; background: #f8faff; }
+        #magicBtn:hover { border-color: #6366f1; color: #6366f1; background: #f5f3ff; }
+        
+        .hero-text {
+            font-size: clamp(3rem, 6vw, 5.5rem);
+            line-height: 0.95;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="full-screen-bg"></div>
+
+    <div class="w-[90%] max-w-7xl flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-24">
+        
+        <div class="flex-1 text-white fade-in text-center lg:text-left">
+            <div class="flex flex-col lg:flex-row items-center gap-4 mb-10">
+                <img src="https://github.com/ranadeep-banik137/NivasKunjInteriors/blob/main/logo%20transparent%20PNG.png?raw=true" 
+                     alt="Nivas Kunj" class="h-16 lg:h-20 w-auto">
+                <div class="hidden lg:block h-10 w-[1px] bg-indigo-500/50"></div>
+                <div>
+                    <h1 class="font-title font-extrabold text-2xl tracking-tighter uppercase leading-none">Nivas Kunj</h1>
+                    <p class="text-[8px] tracking-[0.6em] font-bold text-indigo-400 mt-1 uppercase">Luxury Interiors</p>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <h2 class="hero-text font-black font-title tracking-tighter uppercase">
+                    Crafting Spaces,<br>
+                    <span class="text-indigo-400">Defining Lives.</span>
+                </h2>
+                <div class="w-16 h-1.5 bg-indigo-600 rounded-full mx-auto lg:mx-0"></div>
+                <p class="text-lg text-slate-300 max-w-md font-light leading-relaxed mx-auto lg:mx-0">
+                    Experience the fusion of luxury aesthetics and unparalleled precision.
+                </p>
+            </div>
+        </div>
+
+        <div class="w-full glass-card rounded-[30px] p-8 lg:p-10 fade-in" style="animation-delay: 0.2s">
+            <div class="text-center mb-8">
+                <p id="auth-subtitle" class="text-[9px] font-black text-indigo-600 uppercase tracking-[0.4em] mb-2">Workspace Entry</p>
+                <h2 id="main-title" class="text-2xl lg:text-3xl font-black text-slate-950 font-title tracking-tighter uppercase">Authorize</h2>
+            </div>
+
+            <div class="space-y-4">
+                <div id="email-group">
+                    <input type="email" id="email" placeholder="Email identity" 
+                        class="w-full p-4 bg-slate-100 border border-transparent rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-900 text-base">
+                </div>
+
+                <div id="password-group">
+                    <input type="password" id="password" placeholder="Password" 
+                        class="w-full p-4 bg-slate-100 border border-transparent rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-900 text-base">
+                </div>
+
+                <div id="confirm-group" class="hidden">
+                    <input type="password" id="confirm-password" placeholder="Confirm New Password" 
+                        class="w-full p-4 bg-slate-100 border border-transparent rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-900 text-base">
+                </div>
+
+                <button id="mainBtn" class="w-full bg-slate-900 text-white p-4 rounded-xl font-bold text-[10px] uppercase tracking-[0.3em] hover:bg-indigo-600 transition-all shadow-xl active:scale-95">
+                    Enter Workspace
+                </button>
+
+                <div class="flex justify-between items-center px-1">
+                    <button onclick="toggleMode('reset')" id="forgot-link" class="text-[10px] font-bold text-slate-500 hover:text-indigo-600 uppercase tracking-widest transition">Forget Key?</button>
+                    <button onclick="toggleMode('register')" id="toggle-btn" class="text-[10px] font-bold text-indigo-600 uppercase tracking-widest transition">New Member?</button>
+                </div>
+
+                <div class="pt-6 border-t border-slate-100 mt-4">
+                    <div id="alt-methods" class="grid grid-cols-2 gap-3">
+                        <button id="magicBtn" class="bg-white border border-slate-200 p-3 rounded-lg font-bold text-[9px] uppercase tracking-widest hover:border-indigo-500 transition shadow-sm text-indigo-600">
+                            ✨ Magic Link
+                        </button>
+                        <button id="googleBtn" class="bg-white border border-slate-200 p-3 rounded-lg font-bold text-[9px] uppercase tracking-widest hover:border-indigo-500 transition flex items-center justify-center gap-2 shadow-sm text-slate-700">
+                            <img src="https://www.google.com/favicon.ico" class="w-3 h-3"> Google
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <p id="status" class="mt-4 text-center text-[9px] font-bold uppercase tracking-widest h-4 text-indigo-600"></p>
+
+            <div class="mt-8 pt-4 border-t border-slate-50 flex items-center justify-center gap-2">
+                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Secure by</span>
+                <img src="https://supabase.com/dashboard/img/supabase-logo.svg" class="h-3">
+                <span class="text-[10px] font-black text-[#3ecf8e] uppercase tracking-wider">Supabase</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const S_URL = 'https://wbhcvcsdpdandaxidnlg.supabase.co';
+        const S_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndiaGN2Y3NkcGRhbmRheGlkbmxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NjMwMjksImV4cCI6MjA4MTUzOTAyOX0.n8R1OpFxilWbDfteODc-lyVF_qvntyRnJNVM3g9xCWs'; 
+        const sb = supabase.createClient(S_URL, S_KEY);
+
+        let mode = 'login';
+        const status = document.getElementById('status');
+
+        function toggleMode(target) {
+            mode = target;
+            const title = document.getElementById('main-title');
+            const mainBtn = document.getElementById('mainBtn');
+            const toggleBtn = document.getElementById('toggle-btn');
+            const confirmGroup = document.getElementById('confirm-group');
+            const passwordGroup = document.getElementById('password-group');
+            const emailGroup = document.getElementById('email-group');
+
+            status.innerText = "";
+
+            if (mode === 'register') {
+                title.innerText = "Join Us";
+                mainBtn.innerText = "Create Account";
+                toggleBtn.innerText = "Back to Login";
+                toggleBtn.onclick = () => toggleMode('login');
+                confirmGroup.classList.add('hidden');
+            } else if (mode === 'reset') {
+                title.innerText = "Recover";
+                mainBtn.innerText = "Send Reset Link";
+                passwordGroup.classList.add('hidden');
+                toggleBtn.innerText = "Back to Login";
+                toggleBtn.onclick = () => toggleMode('login');
+            } else if (mode === 'update') {
+                title.innerText = "Update Key";
+                mainBtn.innerText = "Set New Password";
+                emailGroup.classList.add('hidden');
+                confirmGroup.classList.remove('hidden');
+                toggleBtn.classList.add('hidden');
+            } else {
+                title.innerText = "Authorize";
+                mainBtn.innerText = "Enter Workspace";
+                toggleBtn.innerText = "New Member?";
+                toggleBtn.onclick = () => toggleMode('register');
+                passwordGroup.classList.remove('hidden');
+                emailGroup.classList.remove('hidden');
+                confirmGroup.classList.add('hidden');
+                toggleBtn.classList.remove('hidden');
+            }
+        }
+
+        document.getElementById('mainBtn').onclick = async () => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirm = document.getElementById('confirm-password').value;
+
+            status.innerText = "Processing...";
+
+            if (mode === 'update') {
+                if (password !== confirm) { status.innerText = "❌ Keys do not match"; return; }
+                const { error } = await sb.auth.updateUser({ password });
+                if (error) status.innerText = "❌ " + error.message;
+                else { status.innerText = "✅ Success!"; setTimeout(() => toggleMode('login'), 2000); }
+            } else if (mode === 'reset') {
+                const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/index.html' });
+                status.innerText = error ? "❌ " + error.message : "✅ Link Sent!";
+            } else if (mode === 'register') {
+                const { error } = await sb.auth.signUp({ email, password });
+                if (error) status.innerText = "❌ " + error.message;
+                else { status.innerText = "✅ Account Created!"; setTimeout(() => toggleMode('login'), 2000); }
+            } else {
+                const { error } = await sb.auth.signInWithPassword({ email, password });
+                if (error) status.innerText = "❌ Login Failed";
+                else window.location.href = 'portal.html';
+            }
+        };
+
+        document.getElementById('magicBtn').onclick = async () => {
+            const email = document.getElementById('email').value;
+            if (!email) { status.innerText = "❌ Email required"; return; }
+            const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin + '/portal.html' } });
+            status.innerText = error ? "❌ " + error.message : "✅ Check Inbox!";
+        };
+
+        document.getElementById('googleBtn').onclick = async () => {
+            await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/portal.html' } });
+        };
+
+        window.onload = () => {
+            if (window.location.hash.includes("type=recovery")) toggleMode('update');
+        };
+    </script>
+</body>
+</html>

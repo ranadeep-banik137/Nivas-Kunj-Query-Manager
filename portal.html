@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nivas Kunj | Admin Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@400;500;600;700&display=swap');
+        
+        body { 
+			font-family: 'Inter', sans-serif; 
+			/* Deep Slate to Navy Mesh Gradient */
+			background: radial-gradient(at 0% 0%, rgba(15, 23, 42, 1) 0, transparent 50%), 
+						radial-gradient(at 100% 0%, rgba(30, 41, 59, 1) 0, transparent 50%), 
+						radial-gradient(at 100% 100%, rgba(79, 70, 229, 0.1) 0, transparent 50%),
+						radial-gradient(at 0% 100%, rgba(15, 23, 42, 1) 0, transparent 50%);
+			background-color: #020617;
+			background-attachment: fixed;
+			color: #f8fafc;
+			margin: 0;
+		}
+
+        /* Luxury Glass Panels */
+        .glass-panel {
+			background: rgba(30, 41, 59, 0.4); /* Darker transparency */
+			backdrop-filter: blur(16px) saturate(180%);
+			-webkit-backdrop-filter: blur(16px) saturate(180%);
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+		}
+
+		.nav-blur {
+			background: rgba(15, 23, 42, 0.8);
+			backdrop-filter: blur(20px);
+			border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+		}
+
+        /* Active Tab Styling */
+        .active-tab {
+			background: rgba(79, 70, 229, 0.2) !important;
+			color: #818cf8 !important; /* Lighter indigo for dark mode */
+			border: 1px solid rgba(129, 140, 248, 0.3);
+		}
+
+        .btn-luxury {
+			background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+			box-shadow: 0 0 20px rgba(79, 70, 229, 0.4);
+			border: none;
+		}
+
+		.btn-luxury:hover {
+			box-shadow: 0 0 30px rgba(124, 58, 237, 0.6);
+			transform: translateY(-2px) scale(1.02);
+		}
+
+        .hidden { display: none !important; }
+        
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-up { animation: slideUp 0.5s ease-out forwards; }
+
+        /* Modern Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+		/* Modern scrollbar for the Discussion Modal */
+		.custom-scrollbar::-webkit-scrollbar {
+			width: 4px;
+		}
+		.custom-scrollbar::-webkit-scrollbar-track {
+			background: rgba(255, 255, 255, 0.02);
+			border-radius: 10px;
+		}
+		.custom-scrollbar::-webkit-scrollbar-thumb {
+			background: rgba(99, 102, 241, 0.2);
+			border-radius: 10px;
+		}
+		.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+			background: rgba(99, 102, 241, 0.5);
+		}
+		/* Chat Bubble Styling */
+		.custom-scrollbar {
+			scroll-behavior: smooth;
+		}
+
+		/* Add a slight entrance animation to bubbles */
+		.flex.justify-start, .flex.justify-end {
+			animation: bubbleFadeIn 0.3s ease-out forwards;
+		}
+
+		@keyframes bubbleFadeIn {
+			from { opacity: 0; transform: translateY(10px); }
+			to { opacity: 1; transform: translateY(0); }
+		}
+    </style>
+</head>
+<body>
+
+    <div id="loader" class="fixed inset-0 bg-white z-[300] flex flex-col items-center justify-center">
+        <div class="w-12 h-12 border-4 border-zinc-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+        <p class="text-zinc-500 font-bold text-[10px] uppercase tracking-[0.3em]">Authenticating</p>
+    </div>
+
+    <div id="admin-view" class="hidden min-h-screen">
+        <nav class="h-20 nav-blur px-8 lg:px-12 flex items-center justify-between sticky top-0 z-50">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <img src="https://github.com/ranadeep-banik137/NivasKunjInteriors/blob/main/logo%20transparent%20PNG.png?raw=true" class="h-6 w-auto" alt="Logo">
+                </div>
+                <div>
+                    <h1 class="font-bold text-sm tracking-tighter text-white uppercase leading-none">Nivas Kunj</h1>
+                    <p class="text-[8px] font-black text-indigo-600 uppercase tracking-widest mt-1">Luxury Interiors</p>
+                </div>
+            </div>
+
+            <div class="flex items-center bg-white/5 p-1.5 rounded-2xl border border-white/10 backdrop-blur-md">
+                <button onclick="switchTab('enquiries')" id="tab-enquiries" 
+                    class="px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all duration-300 flex items-center gap-2 active-tab">
+                    <i data-lucide="users" class="w-3.5 h-3.5"></i> Enquiries
+                </button>
+                <button onclick="switchTab('quotes')" id="tab-quotes" 
+                    class="px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all duration-300 flex items-center gap-2">
+                    <i data-lucide="file-text" class="w-3.5 h-3.5"></i> Quotes
+                </button>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 px-4 py-2 bg-slate-900/50 border border-white/10 rounded-2xl shadow-sm">
+                    <div class="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                        <i data-lucide="user-check" class="w-4 h-4"></i>
+                    </div>
+                    <div class="flex flex-col items-start">
+                        <span class="text-[8px] font-black text-slate-500 uppercase tracking-tighter leading-none">Access Level</span>
+                        <span id="user-role" class="text-[10px] font-bold text-indigo-400 uppercase">Administrator</span>
+                    </div>
+                </div>
+                <button onclick="handleLogout()" class="w-11 h-11 flex items-center justify-center rounded-2xl bg-slate-900 text-white hover:bg-red-600 transition-all shadow-lg active:scale-95">
+                    <i data-lucide="log-out" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </nav>
+		
+		<main class="max-w-7xl mx-auto px-8 lg:px-12 py-12">
+			<header class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+				<div>
+					<h2 id="tab-title" class="text-3xl font-black text-white tracking-tighter uppercase">Enquiry Pipeline</h2>
+					<p class="text-slate-400 text-xs font-medium mt-1">Manage and track high-intent workspace enquiries.</p>
+				</div>
+				
+				<div class="flex flex-wrap items-center gap-3">
+					<div class="relative">
+						<i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+						<input type="text" id="leadSearch" oninput="handleSearch()" placeholder="Search client or email..." 
+							class="bg-white/5 border border-white/10 rounded-2xl py-3 pl-11 pr-4 text-xs font-bold text-white outline-none focus:ring-2 focus:ring-indigo-500 w-64 transition-all">
+					</div>
+
+					<select id="sortOrder" onchange="handleSort()" class="bg-white/5 border border-white/10 rounded-2xl py-3 px-4 text-[10px] font-black uppercase text-slate-400 outline-none cursor-pointer">
+						<option value="newest">Newest First</option>
+						<option value="oldest">Oldest First</option>
+						<option value="name">Name A-Z</option>
+					</select>
+
+					<button onclick="fetchAdminData()" class="w-11 h-11 flex items-center justify-center bg-white/5 border border-white/10 rounded-2xl text-white hover:bg-indigo-600 transition shadow-sm">
+						<i data-lucide="refresh-cw" class="w-4 h-4"></i>
+					</button>
+				</div>
+			</header>
+
+			<div class="grid grid-cols-12 px-8 mb-6 text-[9px] font-black uppercase text-slate-400 tracking-[0.2em]">
+				<div class="col-span-4">Customer Identity</div>
+				<div class="col-span-3">Pipeline Status</div>
+				<div class="col-span-2">Verification</div>
+				<div class="col-span-3 text-right">Action</div>
+			</div>
+
+			<div id="pagination-controls" class="mt-8 flex justify-center items-center gap-4">
+				</div>
+			<div id="admin-content" class="space-y-4">
+                </div>
+		</main>
+	</div>
+
+    <div id="lead-modal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-[400] hidden flex items-center justify-center p-4">
+        <div class="bg-slate-950 w-full max-w-4xl max-h-[92vh] rounded-[40px] shadow-2xl border border-white/10 flex flex-col overflow-hidden animate-slide-up">
+            <div class="bg-slate-950 w-full max-w-5xl max-h-[95vh] rounded-[32px] shadow-2xl border border-white/10 flex flex-col overflow-hidden animate-slide-up">
+				<div class="p-6 border-b border-white/10 flex justify-between items-center bg-slate-900">
+					<div>
+						<h3 id="modal-title" class="text-xl font-black text-white tracking-tighter uppercase">Lead Workspace</h3>
+						<p id="modal-subtitle" class="text-slate-400 text-[10px] font-medium mt-1"></p>
+					</div>
+					<button onclick="closeModal()" class="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-red-500/20 text-slate-400 rounded-xl transition">
+						<i data-lucide="x" class="w-5 h-5"></i>
+					</button>
+				</div>
+
+				<div class="flex-1 overflow-y-auto p-6">
+					<div id="modal-body-content" class="space-y-6"></div>
+				</div>
+			</div>
+
+            <div class="p-10 border-t bg-slate-50/50 flex justify-end gap-6">
+                <button onclick="closeModal()" class="text-[10px] font-bold text-slate-400 hover:text-white transition uppercase tracking-widest">Close Workspace</button>
+                <button id="save-btn" class="px-12 py-5 bg-slate-900 text-white text-[10px] font-bold rounded-2xl hover:bg-indigo-600 transition shadow-xl uppercase tracking-[0.2em]">Save All Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="client-view" class="hidden min-h-screen bg-[#020617] text-white">
+		<nav class="h-20 border-b border-white/5 bg-slate-900/50 backdrop-blur-xl px-8 flex items-center justify-between sticky top-0 z-50">
+			<div class="flex items-center gap-4">
+				<div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+					<img src="https://github.com/ranadeep-banik137/NivasKunjInteriors/blob/main/logo%20transparent%20PNG.png?raw=true" class="h-6 w-auto" alt="Logo">
+				</div>
+				<div>
+					<h1 class="font-bold text-sm tracking-tighter uppercase leading-none">Nivas Kunj</h1>
+					<p class="text-[8px] font-black text-indigo-400 uppercase tracking-widest mt-1">Client Activity Portal</p>
+				</div>
+			</div>
+
+			<div class="flex items-center gap-6">
+				<div class="hidden md:block text-right">
+					<p id="client-display-email" class="text-[10px] font-bold text-slate-400 italic"></p>
+					<p class="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Logged In</p>
+				</div>
+				<button onclick="handleLogout()" class="w-11 h-11 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 hover:bg-red-500/20 hover:text-red-500 transition-all">
+					<i data-lucide="log-out" class="w-5 h-5"></i>
+				</button>
+			</div>
+		</nav>
+
+		<main class="max-w-6xl mx-auto px-8 py-12">
+			<header class="mb-12">
+				<h2 class="text-4xl font-black tracking-tighter uppercase mb-2">Activity Log</h2>
+				<p class="text-slate-500 text-xs font-medium uppercase tracking-widest">Tracking your architectural enquiries & design requests</p>
+			</header>
+
+			<div id="client-activity-content" class="space-y-4">
+				</div>
+		</main>
+	</div>
+
+    <script>	
+		let allLeads = []; // Holds all fetched data
+		let filteredLeads = []; // Holds search/filtered results
+		let currentPage = 1;
+		const itemsPerPage = 8; // Increased from 3-4 to 8 for better density
+		let currentTab = 'enquiries';
+        const S_URL = 'https://wbhcvcsdpdandaxidnlg.supabase.co';
+        const S_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndiaGN2Y3NkcGRhbmRheGlkbmxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NjMwMjksImV4cCI6MjA4MTUzOTAyOX0.n8R1OpFxilWbDfteODc-lyVF_qvntyRnJNVM3g9xCWs'; 
+        const sb = supabase.createClient(S_URL, S_KEY);
+		
+		async function initializeAuth() {
+			const loader = document.getElementById('loader');
+			const { data: { user }, error: authError } = await sb.auth.getUser();
+
+			if (authError || !user) {
+				window.location.href = 'index.html';
+				return;
+			}
+
+			try {
+				const { data: profile, error: profileError } = await sb
+					.from('profiles')
+					.select('is_admin, email')
+					.eq('id', user.id)
+					.single();
+
+				if (profileError || !profile) {
+					await sb.auth.signOut();
+					window.location.href = 'index.html';
+					return;
+				}
+
+				if (loader) loader.classList.add('hidden');
+
+				if (profile.is_admin) {
+					document.getElementById('admin-view').classList.remove('hidden');
+					fetchAdminData();
+				} else {
+					document.getElementById('client-view').classList.remove('hidden');
+					initializeClientDashboard(profile.email);
+				}
+			} catch (err) {
+				window.location.href = 'index.html';
+			}
+		}
+
+		initializeAuth();
+
+		sb.auth.onAuthStateChange((event) => {
+			if (event === 'SIGNED_OUT') window.location.href = 'index.html';
+		});
+		
+		async function fetchAdminData() {
+			const container = document.getElementById('admin-content');
+			container.innerHTML = `<div class="p-20 text-center animate-pulse text-slate-400 font-bold text-[10px] uppercase tracking-widest">Syncing Pipeline...</div>`;
+			
+			const isQuoteFilter = currentTab === 'quotes';
+			const [rawRes, custRes, detRes, statRes] = await Promise.all([
+				sb.from('raw_enquiries').select('*').eq('is_quote', isQuoteFilter),
+				sb.from('customer_details').select('*'),
+				sb.from('enquiry_details').select('*'),
+				sb.from('enquiry_status').select('*')
+			]);
+
+			if (rawRes.error) { container.innerHTML = "Error loading data"; return; }
+
+			// Combine data into a flat local array for instant Search/Sort/Pagination
+			allLeads = rawRes.data.map(lead => ({
+				...lead,
+				customer: custRes.data?.find(c => c.enquiry_id === lead.id) || {},
+				detail: detRes.data?.find(d => d.enquiry_id === lead.id) || {},
+				statusLabel: statRes.data?.find(s => s.status_id === (detRes.data?.find(d => d.enquiry_id === lead.id)?.status_id))?.status_details || 'New'
+			}));
+
+			handleSearch(); // Triggers filter -> sort -> render
+		}
+
+		// 3 & 4. Search and Sort Logic
+		function handleSearch() {
+			const query = document.getElementById('leadSearch').value.toLowerCase();
+			filteredLeads = allLeads.filter(l => 
+				(l.customer.customer_name?.toLowerCase().includes(query)) || 
+				(l.customer.email_id?.toLowerCase().includes(query)) ||
+				(l.email_id?.toLowerCase().includes(query))
+			);
+			currentPage = 1; // Reset to page 1 on search
+			handleSort();
+		}
+
+		function handleSort() {
+			const val = document.getElementById('sortOrder').value;
+			if (val === 'newest') filteredLeads.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+			if (val === 'oldest') filteredLeads.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+			if (val === 'name') filteredLeads.sort((a, b) => (a.customer.customer_name || '').localeCompare(b.customer.customer_name || ''));
+			
+			renderTable();
+		}
+
+		// 5. Pagination and Table Rendering
+		function renderTable() {
+			const container = document.getElementById('admin-content');
+			const start = (currentPage - 1) * itemsPerPage;
+			const end = start + itemsPerPage;
+			const paginatedItems = filteredLeads.slice(start, end);
+
+			if (paginatedItems.length === 0) {
+				container.innerHTML = `<div class="p-20 text-center text-slate-400 uppercase font-bold text-[10px] tracking-widest">No Matches Found</div>`;
+				renderPagination();
+				return;
+			}
+
+			container.innerHTML = paginatedItems.map(lead => `
+				<div class="animate-slide-up glass-panel grid grid-cols-12 items-center p-4 px-8 rounded-2xl group hover:border-indigo-500/50 transition-all duration-300">
+					<div class="col-span-4">
+						<div class="flex items-center gap-4">
+							<div class="w-10 h-10 rounded-xl bg-slate-900 border border-white/5 flex items-center justify-center text-white font-bold text-sm">
+								${lead.customer.customer_name ? lead.customer.customer_name.charAt(0) : '?'}
+							</div>
+							<div>
+								<h3 class="font-bold text-white text-sm tracking-tight">${lead.customer.customer_name || 'Anonymous'}</h3>
+								<p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest leading-none mt-1">${lead.customer.email_id || lead.email_id}</p>
+							</div>
+						</div>
+					</div>
+					<div class="col-span-3">
+						<span class="px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[9px] font-black rounded-lg uppercase">
+							${lead.statusLabel}
+						</span>
+					</div>
+					<div class="col-span-2 flex gap-2">
+						${lead.customer.is_member ? '<i data-lucide="shield-check" class="w-4 h-4 text-indigo-400"></i>' : ''}
+					</div>
+					<div class="col-span-3 text-right">
+						<button onclick="manageLead('${lead.id}')" class="bg-white/5 hover:bg-indigo-600 border border-white/10 text-white px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">
+							Manage
+						</button>
+					</div>
+				</div>
+			`).join('');
+
+			renderPagination();
+			lucide.createIcons();
+		}
+
+		function renderPagination() {
+			const pg = document.getElementById('pagination-controls');
+			const totalPages = Math.ceil(filteredLeads.length / itemsPerPage);
+			
+			if (totalPages <= 1) { pg.innerHTML = ''; return; }
+
+			pg.innerHTML = `
+				<button onclick="changePage(-1)" ${currentPage === 1 ? 'disabled' : ''} class="p-2 text-slate-500 hover:text-white disabled:opacity-20 transition"><i data-lucide="chevron-left"></i></button>
+				<span class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Page ${currentPage} of ${totalPages}</span>
+				<button onclick="changePage(1)" ${currentPage === totalPages ? 'disabled' : ''} class="p-2 text-slate-500 hover:text-white disabled:opacity-20 transition"><i data-lucide="chevron-right"></i></button>
+			`;
+			lucide.createIcons();
+		}
+
+		function changePage(step) {
+			currentPage += step;
+			renderTable();
+			window.scrollTo({ top: 0, behavior: 'smooth' });
+		}
+
+		async function manageLead(leadId) {
+			const modal = document.getElementById('lead-modal');
+			const content = document.getElementById('modal-body-content');
+			modal.classList.remove('hidden');
+			content.innerHTML = `<div class="py-20 text-center animate-pulse text-slate-400 text-[10px] font-bold uppercase tracking-widest">Initializing Workspace...</div>`;
+
+			const [leadRes, custRes, detRes, commRes, statRes, quoteRes, imagesRes] = await Promise.all([
+				sb.from('raw_enquiries').select('*').eq('id', leadId).single(),
+				sb.from('customer_details').select('*').eq('enquiry_id', leadId).single(),
+				sb.from('enquiry_details').select('*').eq('enquiry_id', leadId).single(),
+				sb.from('enquiry_comments').select('*').eq('enquiry_id', leadId).order('created_at', { ascending: false }),
+				sb.from('enquiry_status').select('*'),
+				sb.from('quote_details').select('*').eq('enquiry_id', leadId).maybeSingle(),
+				sb.from('quote_images').select('image_url').eq('enquiry_id', leadId)
+			]);
+			
+			const lead = leadRes.data;
+			const customer = custRes.data;
+			const details = detRes.data;
+			const email = customer?.email_id || lead?.email_id;
+			const quote = quoteRes.data;
+			const images = imagesRes.data || [];
+
+			const { data: profile } = await sb.from('profiles').select('*').eq('client_email', email).single();
+			const isRegistered = !!profile;
+			
+			document.getElementById('modal-title').innerText = `${customer?.customer_name || 'New Lead'} - Query`;
+			document.getElementById('modal-subtitle').innerText = lead.query_data;
+
+			content.innerHTML = `
+				<div class="p-5 bg-slate-900 rounded-2xl text-white border border-white/5 flex items-center justify-between">
+					<div class="flex items-center gap-4">
+						<div class="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+							<i data-lucide="${isRegistered ? 'shield-check' : 'user-plus'}" class="w-5 h-5"></i>
+						</div>
+						<div>
+							<p class="text-[8px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-1">Security Status</p>
+							<h4 class="text-sm font-bold">${isRegistered ? 'Verified Client' : 'External Lead'}</h4>
+						</div>
+					</div>
+					<div class="text-right">
+						<p class="text-[8px] text-white/40 font-bold uppercase tracking-widest mb-1">Linked Email</p>
+						<p class="text-xs font-medium">${email}</p>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 bg-slate-900/40 rounded-2xl border border-white/5">
+					<div class="space-y-1.5">
+						<label class="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">Customer Name</label>
+						<input id="edit-name" type="text" value="${customer?.customer_name || ''}" 
+						class="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-xs font-bold text-white outline-none focus:ring-1 focus:ring-indigo-500">
+					</div>
+					<div class="space-y-1.5">
+						<label class="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">Phone Number</label>
+						<input id="edit-phone" type="text" value="${customer?.phone_number || ''}" 
+						class="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-xs font-bold text-white outline-none focus:ring-1 focus:ring-indigo-500">
+					</div>
+					<div class="space-y-1.5">
+						<label class="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">Pipeline Status</label>
+						<select id="edit-status" class="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-xs font-bold text-white outline-none focus:ring-1 focus:ring-indigo-500">
+							${statRes.data.map(s => `<option value="${s.status_id}" ${details?.status_id === s.status_id ? 'selected' : ''}>${s.status_details}</option>`).join('')}
+						</select>
+					</div>
+				</div>
+				
+				${getQuoteHTML(quote, images)}
+
+				<div class="space-y-4">
+					<div class="flex items-center justify-between px-2">
+						<h4 class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Interaction History</h4>
+						<div class="flex gap-2 w-2/3">
+							<input id="new-comment" placeholder="Log internal note..." class="flex-1 px-4 py-2 bg-slate-900 border border-white/10 rounded-xl text-xs text-white outline-none">
+							<button onclick="addComment('${leadId}')" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase hover:bg-indigo-500 transition">Post</button>
+						</div>
+					</div>
+					
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-2">
+						${commRes.data?.length > 0 ? commRes.data.map(c => `
+							<div class="p-4 bg-white/5 border border-white/5 rounded-xl">
+								<div class="flex justify-between items-center mb-1">
+									<span class="text-[8px] font-black text-indigo-400 uppercase tracking-widest">${c.org_comments || 'Note'}</span>
+									<span class="text-[8px] text-slate-500 font-medium">${new Date(c.created_at).toLocaleDateString()}</span>
+								</div>
+								<p class="text-[11px] text-slate-300 leading-snug">${c.comments}</p>
+							</div>
+						`).join('') : '<p class="text-[10px] text-slate-500 italic col-span-2 text-center py-4">No interactions recorded.</p>'}
+					</div>
+				</div>
+			
+				${details?.is_project ? `
+					<div class="mt-8 p-5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between">
+						<div class="flex items-center gap-3">
+							<div class="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+								<i data-lucide="check-circle" class="w-5 h-5"></i>
+							</div>
+							<div>
+								<h4 class="text-xs font-black text-white uppercase tracking-tight">Active Project Linked</h4>
+								<p class="text-[9px] text-emerald-300/60 font-medium">Project ID: ${details.project_id.slice(0,8)}... is live.</p>
+							</div>
+						</div>
+						<span class="px-4 py-2 bg-emerald-500 text-white text-[9px] font-black uppercase rounded-lg">Live</span>
+					</div>
+				` : `
+					<div id="onboarding-zone" class="mt-8">
+						<div class="p-5 bg-indigo-600/10 border border-indigo-500/20 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+							<div class="flex items-center gap-3">
+								<div class="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+									<i data-lucide="layers" class="w-5 h-5"></i>
+								</div>
+								<div>
+									<h4 class="text-xs font-black text-white uppercase tracking-tight">Cluster Management</h4>
+									<p class="text-[9px] text-indigo-300/60 font-medium">Scan for other enquiries from this client to group them.</p>
+								</div>
+							</div>
+							<button onclick="searchSiblingsForOnboarding('${leadId}', '${email}')" 
+								class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-indigo-500/20">
+								Scan for Related Items
+							</button>
+						</div>
+					</div>
+				`}
+
+				${(!isRegistered && !details?.is_project) ? `
+				<div class="mt-3 px-4 py-3 bg-white/5 border border-white/5 rounded-xl flex items-center justify-between">
+					<p class="text-[9px] text-slate-400 font-medium">Client hasn't joined the portal yet.</p>
+					<button onclick="sendRegistrationInvite('${email}', '${customer?.customer_name}')" 
+						class="text-[9px] font-black text-indigo-400 uppercase tracking-widest hover:text-white transition">
+						Send Invite &rarr;
+					</button>
+				</div>
+				` : ''}
+			`; // End of content.innerHTML template
+			lucide.createIcons();
+			document.getElementById('save-btn').onclick = () => saveLeadChanges(leadId);
+		}
+		
+		function switchTab(tab) {
+			currentTab = tab;
+			const enqBtn = document.getElementById('tab-enquiries');
+			const quoBtn = document.getElementById('tab-quotes');
+			const titleElem = document.getElementById('tab-title');
+			
+			if (tab === 'quotes') {
+				quoBtn.classList.add('active-tab');
+				enqBtn.classList.remove('active-tab');
+				if(titleElem) titleElem.innerText = 'System Quotes';
+			} else {
+				enqBtn.classList.add('active-tab');
+				quoBtn.classList.remove('active-tab');
+				if(titleElem) titleElem.innerText = 'Enquiry Pipeline';
+			}
+			fetchAdminData();
+		}
+
+		async function searchSiblingsForOnboarding(primaryId, email) {
+			const zone = document.getElementById('onboarding-zone');
+			zone.innerHTML = `<div class="py-10 animate-pulse text-slate-400 text-[10px] font-black uppercase tracking-widest text-center">Scanning Cluster...</div>`;
+
+			try {
+				const { data: customerEntries } = await sb.from('customer_details').select('enquiry_id').eq('email_id', email);
+				const allEnquiryIds = customerEntries.map(ce => ce.enquiry_id);
+				const { data: siblings } = await sb.from('raw_enquiries')
+					.select(`id, created_at, query_data, customer_details(customer_name)`)
+					.in('id', allEnquiryIds);
+
+				const otherLeads = siblings.filter(s => s.id !== primaryId);
+
+				zone.innerHTML = `
+					<div class="text-left bg-slate-900/50 p-6 rounded-2xl border border-white/10 shadow-xl">
+						<div class="flex justify-between items-center mb-6">
+							<div>
+								<h4 class="text-xs font-black text-white tracking-tight uppercase">Cluster Identification</h4>
+								<p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">Found ${otherLeads.length} related records for this email</p>
+							</div>
+							<button onclick="toggleAllSiblings(this)" class="px-4 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[8px] font-black text-indigo-400 uppercase hover:bg-white/10 transition">Select All</button>
+						</div>
+
+						<div class="space-y-2 max-h-48 overflow-y-auto mb-6 pr-2 custom-scrollbar">
+							<div class="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center gap-4">
+								<input type="checkbox" checked disabled class="w-4 h-4 accent-indigo-400 opacity-50">
+								<div class="flex-1 grid grid-cols-2 text-[9px] font-bold text-white uppercase tracking-widest items-center">
+									<span class="truncate">Current Master Lead</span>
+									<span class="text-right text-indigo-400">Primary</span>
+								</div>
+							</div>
+
+							${otherLeads.map(s => `
+								<div class="p-3 bg-white/5 border border-white/5 rounded-xl flex items-center gap-4 hover:border-indigo-500/30 transition group">
+									<input type="checkbox" class="sibling-checkbox w-4 h-4 accent-indigo-600" value="${s.id}" checked>
+									<div class="flex-1 grid grid-cols-2 text-[9px] font-bold text-slate-300 uppercase tracking-widest items-center">
+										<span class="truncate">Enquiry: ${new Date(s.created_at).toLocaleDateString()}</span>
+										<span class="text-right text-slate-500 group-hover:text-indigo-400">ID: ${s.id.slice(0,8)}</span>
+									</div>
+								</div>
+							`).join('')}
+						</div>
+
+						<div class="flex flex-col gap-3">
+							<input id="project-name" type="text" placeholder="Assign Global Project Name..." 
+								class="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-[11px] font-bold text-white outline-none focus:ring-1 focus:ring-indigo-500">
+							<button onclick="executeBulkOnboarding('${primaryId}', '${email}')" 
+								class="w-full py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-indigo-500 transition shadow-lg shadow-indigo-500/20">
+								Confirm & Launch Project
+							</button>
+						</div>
+					</div>
+				`;
+				lucide.createIcons();
+			} catch (err) { zone.innerHTML = `<p class="text-[9px] text-red-400 text-center uppercase font-black">Cluster Scan Failed</p>`; }
+		}
+		
+		async function executeBulkOnboarding(primaryId, email) {
+			const zone = document.getElementById('onboarding-zone');
+			const customerName = document.getElementById('edit-name').value || "New Client";
+			const newProjectId = crypto.randomUUID();
+			const checkboxes = document.querySelectorAll('.sibling-checkbox:checked');
+			const idsToLink = [primaryId, ...Array.from(checkboxes).map(cb => cb.value)];
+
+			zone.innerHTML = `<div class="py-10 text-slate-400 text-[10px] font-black animate-pulse uppercase">Allocating Workspace ID...</div>`;
+
+			try {
+				await sb.from('projects').insert({
+					id: newProjectId,
+					enquiry_id: primaryId,
+					project_name: customerName.trim() + "'s Project",
+					current_phase: 'Onboarding',
+					client_email: email
+				});
+
+				await sb.from('enquiry_details').update({ project_id: newProjectId, is_project: true, status_id: 5 }).in('enquiry_id', idsToLink);
+				
+				alert(`PROJECT LIVE: ${newProjectId.slice(0,8)} created.`);
+				closeModal();
+				fetchAdminData();
+			} catch (err) { alert("Execution failed."); searchSiblingsForOnboarding(primaryId, email); }
+		}
+
+		async function saveLeadChanges(leadId) {
+			const saveBtn = document.getElementById('save-btn');
+			const name = document.getElementById('edit-name').value;
+			const phone = document.getElementById('edit-phone').value;
+			const statusId = document.getElementById('edit-status').value;
+
+			saveBtn.disabled = true;
+			saveBtn.innerText = "SYNCING...";
+
+			await Promise.all([
+				sb.from('customer_details').update({ customer_name: name, phone_number: phone }).eq('enquiry_id', leadId),
+				sb.from('enquiry_details').update({ status_id: statusId }).eq('enquiry_id', leadId)
+			]);
+			
+			saveBtn.innerText = "VERIFIED!";
+			setTimeout(() => {
+				closeModal();
+				fetchAdminData();
+				saveBtn.innerText = "Save All Changes";
+				saveBtn.disabled = false;
+			}, 1000);
+		}
+
+		async function addComment(leadId) {
+			const commentText = document.getElementById('new-comment').value;
+			if (!commentText.trim()) return;
+			await sb.from('enquiry_comments').insert({ enquiry_id: leadId, comments: commentText, org_comments: "Admin Note" });
+			manageLead(leadId);
+		}
+
+		function getQuoteHTML(q, images) {
+			if (!q) return '';
+			return `
+				<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+					<div class="p-4 bg-slate-900/50 border border-white/5 rounded-2xl">
+						<p class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Flat Type</p>
+						<p class="text-xs font-bold text-white">${q.flat_type}</p>
+					</div>
+					<div class="p-4 bg-slate-900/50 border border-white/5 rounded-2xl">
+						<p class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Bedrooms</p>
+						<p class="text-xs font-bold text-white">${q.bedrooms} BHK</p>
+					</div>
+					<div class="p-4 bg-slate-900/50 border border-white/5 rounded-2xl">
+						<p class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Area</p>
+						<p class="text-xs font-bold text-white">${q.area_sqft} Sqft</p>
+					</div>
+					<div class="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl">
+						<p class="text-[7px] font-black text-indigo-400 uppercase tracking-widest mb-1">Package</p>
+						<p class="text-xs font-bold text-indigo-300">${q.package}</p>
+					</div>
+				</div>
+				${images.length > 0 ? `
+					<div class="flex gap-2 overflow-x-auto py-2 scrollbar-hide">
+						${images.map(img => `
+							<img src="${img.image_url}" class="h-16 w-16 object-cover rounded-lg border border-white/10 flex-shrink-0">
+						`).join('')}
+					</div>
+				` : ''}
+			`;
+		}
+
+		async function initializeClientDashboard(email) {
+			const container = document.getElementById('client-activity-content');
+			document.getElementById('client-display-email').innerText = email;
+			
+			container.innerHTML = `<div class="py-20 text-center animate-pulse text-slate-500 font-bold text-[10px] uppercase tracking-[0.3em]">Mapping Database Records...</div>`;
+
+			try {
+				// 1. Fetch enquiry IDs for this email
+				const { data: customerRecords } = await sb.from('customer_details').select('enquiry_id').eq('email_id', email);
+				
+				if (!customerRecords || customerRecords.length === 0) {
+					container.innerHTML = `<div class="p-20 glass-panel rounded-[40px] text-center text-slate-500 uppercase font-bold text-xs tracking-widest border border-dashed border-white/10">No activities found for this account.</div>`;
+					return;
+				}
+
+				const enquiryIds = customerRecords.map(r => r.enquiry_id);
+
+				// 2. Parallel Fetch: Raw Data, Status IDs, and Status Definitions
+				const [rawRes, detailRes, statusDefRes] = await Promise.all([
+					sb.from('raw_enquiries').select('*').in('id', enquiryIds).order('created_at', { ascending: false }),
+					sb.from('enquiry_details').select('enquiry_id, status_id').in('enquiry_id', enquiryIds),
+					sb.from('enquiry_status').select('*')
+				]);
+
+				const statusMap = statusDefRes.data.reduce((acc, s) => {
+					acc[s.status_id] = s.status_details;
+					return acc;
+				}, {});
+
+				// 3. Render Activity Rows
+				container.innerHTML = rawRes.data.map(item => {
+					const detail = detailRes.data?.find(d => d.enquiry_id === item.id);
+					const statusLabel = statusMap[detail?.status_id] || 'Pending Review';
+					
+					// Color coding logic based on status_id
+					let statusColor = 'text-slate-400 bg-slate-400/10 border-slate-400/20';
+					if (detail?.status_id === 1) statusColor = 'text-indigo-400 bg-indigo-400/10 border-indigo-400/20'; // New
+					if (detail?.status_id === 5) statusColor = 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20'; // Onboarded
+
+					return `
+						<div class="glass-panel group p-6 rounded-3xl border border-white/5 hover:border-white/10 transition-all flex flex-col md:flex-row items-center justify-between gap-6">
+							<div class="flex items-center gap-6 flex-1">
+								<div class="w-12 h-12 rounded-2xl bg-slate-900 border border-white/10 flex items-center justify-center text-indigo-400">
+									<i data-lucide="${item.is_quote ? 'file-text' : 'message-square'}" class="w-6 h-6"></i>
+								</div>
+								<div>
+									<div class="flex items-center gap-3 mb-1">
+										<span class="text-[10px] font-black uppercase tracking-widest ${item.is_quote ? 'text-amber-500' : 'text-indigo-400'}">
+											${item.is_quote ? 'Quote Request' : 'General Enquiry'}
+										</span>
+										<span class="text-[8px] text-slate-500 font-bold uppercase tracking-tighter">${new Date(item.created_at).toLocaleString()}</span>
+									</div>
+									<h3 class="text-sm font-bold text-slate-200 line-clamp-1 italic">"${item.query_data}"</h3>
+								</div>
+							</div>
+
+							<div class="flex items-center gap-4">
+								<span class="px-4 py-1.5 rounded-xl border ${statusColor} text-[9px] font-black uppercase tracking-widest">
+									${statusLabel}
+								</span>
+								<button onclick="viewClientComments('${item.id}')" class="px-5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">
+									Discussion Board
+								</button>
+							</div>
+						</div>
+					`;
+				}).join('');
+
+				lucide.createIcons();
+			} catch (err) {
+				console.error(err);
+				container.innerHTML = `<div class="text-red-400 text-xs font-bold uppercase">Database Sync Error</div>`;
+			}
+		}
+
+        function toggleAllSiblings(btn) {
+			const checks = document.querySelectorAll('.sibling-checkbox');
+			const newState = !checks[0]?.checked;
+			checks.forEach(c => c.checked = newState);
+			btn.innerText = newState ? "Deselect All" : "Select All";
+		}
+
+        function sendRegistrationInvite(email, name) {
+			const regUrl = `${window.location.origin}/index.html`; // Redirect back to index for sign up
+			const subject = encodeURIComponent("Nivas Kunj - Dashboard Invitation");
+			const body = encodeURIComponent(`Hi ${name},\n\nPlease complete your setup to view your project designs here: ${regUrl}`);
+			window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+			alert("Invitation ready for: " + email);
+		}
+
+		function closeModal() { document.getElementById('lead-modal').classList.add('hidden'); }
+		async function handleLogout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
+        lucide.createIcons();
+		
+		
+		async function createActiveProject(leadId, email) {
+			const projectName = document.getElementById('project-name').value;
+			if (!projectName.trim()) {
+				alert("Please enter a Project Name");
+				return;
+			}
+
+			try {
+				const newProjectId = crypto.randomUUID();
+				
+				// 1. Create the Project record
+				const { error: pError } = await sb.from('projects').insert({
+					id: newProjectId,
+					enquiry_id: leadId,
+					project_name: projectName.trim(),
+					current_phase: 'Onboarding',
+					client_email: email
+				});
+
+				if (pError) throw pError;
+
+				// 2. Update Enquiry Details to lock the record
+				const { error: dError } = await sb.from('enquiry_details').update({ 
+					project_id: newProjectId, 
+					is_project: true, 
+					status_id: 5 // Converted/Active Status
+				}).eq('enquiry_id', leadId);
+
+				if (dError) throw dError;
+
+				alert("Project Launched Successfully!");
+				manageLead(leadId); // Refresh the modal view immediately
+				fetchAdminData();   // Refresh the background pipeline
+			} catch (err) {
+				console.error(err);
+				alert("Launch failed. Please check if a project name already exists or try again.");
+			}
+		}
+		
+		async function viewClientComments(enquiryId) {
+			const modal = document.getElementById('lead-modal');
+			const content = document.getElementById('modal-body-content');
+			const title = document.getElementById('modal-title');
+			const subtitle = document.getElementById('modal-subtitle');
+			
+			modal.classList.remove('hidden');
+			title.innerText = "Discussion Board";
+			subtitle.innerText = "Project Conversation Profile";
+			content.innerHTML = `<div class="py-10 text-center animate-pulse text-slate-500 text-[10px] font-bold uppercase tracking-widest">Opening Secure Channel...</div>`;
+
+			try {
+				const { data: comments, error } = await sb
+					.from('enquiry_comments')
+					.select('*')
+					.eq('enquiry_id', enquiryId)
+					.order('created_at', { ascending: true }); // Changed to Ascending for natural chat flow
+
+				if (error) throw error;
+
+				if (!comments || comments.length === 0) {
+					content.innerHTML = `<div class="text-center py-20 text-slate-600 text-[10px] font-black uppercase tracking-widest italic">No messages exchanged yet.</div>`;
+					lucide.createIcons();
+					return;
+				}
+
+				content.innerHTML = `
+					<div class="flex flex-col gap-6 max-h-[65vh] overflow-y-auto pr-4 custom-scrollbar p-2">
+						${comments.map(c => {
+							const isCompany = c.org_comments && c.org_comments.trim() !== "";
+							const messageText = isCompany ? c.org_comments : c.comments;
+							
+							return `
+								<div class="flex ${isCompany ? 'justify-start' : 'justify-end'} w-full">
+									<div class="max-w-[85%] md:max-w-[70%] flex flex-col ${isCompany ? 'items-start' : 'items-end'}">
+										<div class="flex items-center gap-2 mb-1.5 px-1">
+											${isCompany ? '<span class="text-[7px] font-black text-indigo-400 uppercase tracking-widest">Nivas Kunj Studio</span>' : ''}
+											<span class="text-[7px] text-slate-500 font-bold">${new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+											${!isCompany ? '<span class="text-[7px] font-black text-emerald-500 uppercase tracking-widest">You</span>' : ''}
+										</div>
+
+										<div class="${isCompany 
+											? 'bg-slate-900 border border-white/10 text-slate-200 rounded-2xl rounded-tl-none' 
+											: 'bg-indigo-600 text-white rounded-2xl rounded-tr-none shadow-lg shadow-indigo-500/10'} 
+											p-4 text-xs font-medium leading-relaxed">
+											${messageText}
+										</div>
+										
+										<span class="text-[6px] text-slate-600 mt-1 uppercase font-bold tracking-tighter">
+											${new Date(c.created_at).toLocaleDateString()}
+										</span>
+									</div>
+								</div>
+							`;
+						}).join('')}
+					</div>
+				`;
+				
+				// Auto-scroll to bottom of chat
+				setTimeout(() => {
+					const container = content.querySelector('.custom-scrollbar');
+					if (container) container.scrollTop = container.scrollHeight;
+				}, 100);
+
+				lucide.createIcons();
+			} catch (err) {
+				console.error(err);
+				content.innerHTML = `<p class="text-red-400 text-center text-[10px] font-black uppercase py-10">Sync Failed</p>`;
+			}
+		}
+    </script>
+</body>
+</html>
