@@ -7,66 +7,123 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@800&family=Inter:wght@400;500;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .font-title { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .hidden { display: none !important; }
-    </style>
+		@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@400;500;600;700&display=swap');
+		
+		:root {
+			--primary: #4f46e5;
+			--primary-hover: #4338ca;
+			--bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+			--glass-bg: rgba(255, 255, 255, 0.95);
+		}
+
+		body { 
+			font-family: 'Inter', sans-serif; 
+			background: var(--bg-gradient);
+			background-attachment: fixed;
+		}
+
+		.font-title { font-family: 'Plus Jakarta Sans', sans-serif; }
+		
+		/* Neumorphic/Glass card effect */
+		.auth-card {
+			background: var(--glass-bg);
+			backdrop-filter: blur(10px);
+			border: 1px solid rgba(255, 255, 255, 0.5);
+			box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+		}
+
+		/* Colorful gradient for the Supabase Logo section */
+		.supabase-footer {
+			background: linear-gradient(to right, #3ecf8e 0%, #34b27b 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+		}
+
+		.hidden { display: none !important; }
+
+		/* Fix the spacing and transitions */
+		#alt-methods-container { 
+			transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+			overflow: hidden;
+		}
+
+		input:focus {
+			border-color: var(--primary);
+			box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+		}
+	</style>
 </head>
-<body class="bg-slate-50 min-h-screen flex items-center justify-center p-4">
-    <div class="bg-white p-10 rounded-[40px] shadow-2xl max-w-md w-full border border-slate-100 transition-all">
-        <div class="text-center mb-10">
-            <h1 class="text-3xl font-black text-zinc-900 tracking-tighter uppercase font-title">Nivas Kunj</h1>
-            <p id="auth-subtitle" class="text-zinc-500 text-xs font-bold mt-2 uppercase tracking-widest">Client & Admin Workspace</p>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="auth-card p-10 rounded-[48px] max-w-md w-full transition-all duration-500">
+        <div class="text-center mb-8">
+            <div class="inline-block p-3 bg-indigo-50 rounded-3xl mb-4">
+                <div class="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
+                    <span class="text-white font-black text-xl">NK</span>
+                </div>
+            </div>
+            <h1 class="text-3xl font-black text-slate-900 tracking-tighter uppercase font-title">Nivas Kunj</h1>
+            <p id="auth-subtitle" class="text-slate-500 text-[10px] font-bold mt-2 uppercase tracking-[0.2em]">Design Workspace Portal</p>
         </div>
 
-        <div class="space-y-5">
-            <div>
-                <label class="text-[10px] font-bold text-zinc-400 uppercase ml-2 mb-1.5 block tracking-widest">Email Address</label>
+        <div class="space-y-4">
+            <div id="email-group" class="space-y-1.5">
+                <label class="text-[10px] font-bold text-slate-400 uppercase ml-2 tracking-widest">Email Address</label>
                 <input type="email" id="email" placeholder="name@email.com" 
-                    class="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition font-medium text-sm">
+                    class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none transition-all font-medium text-sm">
             </div>
 
-            <div id="password-group">
-                <div class="flex justify-between items-center ml-2 mb-1.5">
-                    <label id="password-label" class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Password</label>
-                    <button id="forgot-link" onclick="handleReset()" class="text-[9px] font-bold text-indigo-500 hover:text-indigo-700 uppercase tracking-widest">Forgot?</button>
+            <div id="password-group" class="space-y-1.5">
+                <div class="flex justify-between items-center ml-2">
+                    <label id="password-label" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Password</label>
+                    <button id="forgot-link" onclick="handleReset()" class="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 uppercase tracking-widest">Forgot?</button>
                 </div>
                 <input type="password" id="password" placeholder="••••••••" 
-                    class="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition font-medium text-sm">
+                    class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none transition-all font-medium text-sm">
             </div>
 
-            <div class="grid grid-cols-1 gap-3 pt-4">
-                <button id="mainBtn" class="w-full bg-zinc-900 text-white p-4 rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] hover:bg-indigo-600 transition shadow-xl shadow-zinc-100">
-                    Sign In with Password
+            <div id="confirm-password-group" class="hidden space-y-1.5">
+                <label class="text-[10px] font-bold text-slate-400 uppercase ml-2 tracking-widest">Confirm Password</label>
+                <input type="password" id="confirm-password" placeholder="••••••••" 
+                    class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none transition-all font-medium text-sm">
+            </div>
+
+            <button id="mainBtn" class="w-full bg-slate-900 text-white p-4 rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200 active:scale-[0.98]">
+                Sign In to Workspace
+            </button>
+            
+            <div id="alt-access-section">
+                <button onclick="toggleAltMethods()" class="w-full py-4 flex items-center justify-center gap-2 group">
+                    <span class="w-full border-t border-slate-100"></span>
+                    <span class="whitespace-nowrap text-[9px] uppercase font-black text-slate-300 tracking-[0.2em] group-hover:text-indigo-400 transition">Alternative Options</span>
+                    <span class="w-full border-t border-slate-100"></span>
                 </button>
-                
-                <div id="alt-methods" class="space-y-3">
-                    <div class="relative py-4">
-                        <div class="absolute inset-0 flex items-center"><span class="w-full border-t border-zinc-100"></span></div>
-                        <div class="relative flex justify-center text-[9px] uppercase font-black"><span class="bg-white px-4 text-zinc-300 tracking-[0.3em]">Alternative Access</span></div>
-                    </div>
 
-                    <button id="magicBtn" class="w-full bg-white border border-zinc-200 text-zinc-500 p-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-zinc-50 transition hover:text-zinc-800">
-                        Send Magic Link
+                <div id="alt-methods-container" class="hidden space-y-3">
+                    <button id="magicBtn" class="w-full bg-white border border-slate-100 text-slate-600 p-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:border-indigo-200 hover:text-indigo-600 transition shadow-sm">
+                        ✨ Send Magic Link
                     </button>
-
-                    <button id="googleBtn" class="w-full bg-white border border-zinc-200 text-zinc-500 p-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-zinc-50 transition flex items-center justify-center gap-3 hover:text-zinc-800">
-                        <img src="https://www.google.com/favicon.ico" class="w-4 h-4 grayscale opacity-70"> Continue with Google
+                    <button id="googleBtn" class="w-full bg-white border border-slate-100 text-slate-600 p-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:border-red-100 transition shadow-sm flex items-center justify-center gap-3">
+                        <img src="https://www.google.com/favicon.ico" class="w-4 h-4"> Continue with Google
                     </button>
                 </div>
             </div>
         </div>
 
-        <p id="status" class="mt-8 text-center text-[10px] font-bold uppercase tracking-widest h-4 text-indigo-600"></p>
+        <p id="status" class="mt-6 text-center text-[10px] font-bold uppercase tracking-widest h-4 text-indigo-600"></p>
         
-        <div class="mt-8 pt-6 border-t border-zinc-50 text-center">
-            <p id="toggle-text" class="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
-                New client? <button onclick="toggleMode('register')" class="text-indigo-600 ml-1 hover:underline">Register here</button>
+        <div class="mt-6 text-center">
+            <p id="toggle-text" class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                New client? <button onclick="toggleMode('register')" class="text-indigo-600 ml-1 hover:text-indigo-800 transition">Register here</button>
             </p>
-            <p class="text-[9px] font-black text-zinc-400 uppercase tracking-[0.3em] mt-6 flex items-center justify-center gap-2">
-                Powered by <span class="text-emerald-500">Supabase</span>
-            </p>
+            
+            <div class="mt-10 flex flex-col items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-[9px] font-bold text-slate-300 uppercase tracking-[0.3em]">Built with</span>
+                    <img src="https://supabase.com/dashboard/img/supabase-logo.svg" class="h-5 drop-shadow-sm" alt="Supabase Logo">
+                    <span class="text-[11px] font-black tracking-tight text-[#3ecf8e]">Supabase</span>
+                </div>
+                <div class="w-12 h-1 bg-slate-50 rounded-full"></div>
+            </div>
         </div>
     </div>
 
@@ -84,8 +141,11 @@
 
 			// Detect if this is a Password Reset link
 			if (hash.includes("type=recovery") || hash.includes("access_token")) {
-				toggleMode('reset');
-				status.innerText = "🔑 Security Token Verified. Set your new password.";
+				// Force a slight delay to ensure DOM is ready
+				setTimeout(() => {
+					toggleMode('reset');
+					status.innerText = "🔑 Security Token Verified. Set your new password.";
+				}, 100);
 			} 
 			// Existing invite detection
 			else if (params.get('email')) {
@@ -94,43 +154,51 @@
 			}
 		};
 
+
+		// Toggle the Alternative Access Accordion
+		function toggleAltMethods() {
+			const container = document.getElementById('alt-methods-container');
+			container.classList.toggle('hidden');
+		}
+		
         function toggleMode(targetMode) {
 			mode = targetMode;
 			const subtitle = document.getElementById('auth-subtitle');
 			const mainBtn = document.getElementById('mainBtn');
-			const altMethods = document.getElementById('alt-methods');
+			const altSection = document.getElementById('alt-access-section');
 			const toggleText = document.getElementById('toggle-text');
 			const passLabel = document.getElementById('password-label');
 			const forgotLink = document.getElementById('forgot-link');
-			
-			// FIX: Define the email container so it can be hidden/shown
-			const emailInput = document.getElementById('email');
-			const emailGroup = emailInput.parentElement;
+			const emailGroup = document.getElementById('email-group');
+			const confirmGroup = document.getElementById('confirm-password-group');
 
 			if (mode === 'reset') {
 				subtitle.innerText = "Set your new password";
 				mainBtn.innerText = "Update Password";
-				passLabel.innerText = "New Permanent Password";
-				emailGroup.classList.add('hidden'); // Now emailGroup is defined
+				passLabel.innerText = "New Password";
+				emailGroup.classList.add('hidden');
+				confirmGroup.classList.remove('hidden'); // Show confirm box
 				forgotLink.classList.add('hidden');
-				altMethods.classList.add('hidden');
+				altSection.classList.add('hidden');
 				toggleText.innerHTML = `<button onclick="toggleMode('login')" class="text-zinc-400 font-bold uppercase text-[9px] tracking-widest">Cancel and go back</button>`;
 			} else if (mode === 'register') {
 				subtitle.innerText = "Create your secure account";
 				mainBtn.innerText = "Complete Registration";
-				passLabel.innerText = "Set Permanent Password";
-				emailGroup.classList.remove('hidden'); // Ensure visible if coming from reset
+				passLabel.innerText = "Set Password";
+				emailGroup.classList.remove('hidden');
+				confirmGroup.classList.add('hidden');
 				forgotLink.classList.add('hidden');
-				altMethods.classList.add('hidden');
+				altSection.classList.add('hidden');
 				toggleText.innerHTML = `Already have an account? <button onclick="toggleMode('login')" class="text-indigo-600 ml-1">Sign In</button>`;
 			} else {
 				subtitle.innerText = "Client & Admin Workspace";
 				mainBtn.innerText = "Sign In with Password";
 				passLabel.innerText = "Password";
-				emailGroup.classList.remove('hidden'); // Ensure visible
+				emailGroup.classList.remove('hidden');
+				confirmGroup.classList.add('hidden');
 				forgotLink.classList.remove('hidden');
-				altMethods.classList.remove('hidden');
-				toggleText.innerHTML = `New client? <button onclick="toggleMode('register')" class="text-indigo-600 ml-1">Register here</button>`;
+				altSection.classList.remove('hidden');
+				toggleText.innerHTML = `New client? <button onclick="toggleMode('register')" class="text-indigo-600 ml-1 hover:underline">Register here</button>`;
 			}
 		}
 
@@ -150,11 +218,16 @@
         document.getElementById('mainBtn').onclick = async () => {
 			const email = document.getElementById('email').value;
 			const password = document.getElementById('password').value;
-
+			const confirmPassword = document.getElementById('confirm-password').value;
+			
 			// 1. HANDLE RESET MODE (Skip email check)
 			if (mode === 'reset') {
 				if (!password || password.length < 6) {
 					status.innerText = "❌ Password must be at least 6 characters";
+					return;
+				}
+				if (password !== confirmPassword) {
+					status.innerText = "❌ Passwords do not match";
 					return;
 				}
 				status.innerText = "Updating...";
@@ -213,6 +286,17 @@
                 options: { redirectTo: window.location.origin + '/portal.html' }
             });
         };
+		
+		document.getElementById('confirm-password').oninput = function() {
+			const p1 = document.getElementById('password').value;
+			const p2 = this.value;
+			if (p1 === p2 && p1.length >= 6) {
+				this.classList.replace('focus:ring-indigo-500', 'focus:ring-emerald-500');
+				status.innerText = "✅ Passwords match";
+			} else {
+				this.classList.replace('focus:ring-emerald-500', 'focus:ring-indigo-500');
+			}
+		};
     </script>
 </body>
 </html>
