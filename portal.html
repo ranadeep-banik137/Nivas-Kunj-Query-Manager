@@ -255,6 +255,7 @@
 	</div>
 
     <script>
+		let currentProjectId = null;
 		let allLeads = []; // Holds all fetched data
 		let filteredLeads = []; // Holds search/filtered results
 		let currentPage = 1;
@@ -307,6 +308,11 @@
 		});
 		
 		async function fetchAdminData() {
+			if (currentTab === 'projects') {
+				loadAdminProjects();
+				return;
+			}
+
 			const container = document.getElementById('admin-content');
 			container.innerHTML = `<div class="p-20 text-center animate-pulse text-slate-400 font-bold text-[10px] uppercase tracking-widest">Syncing Pipeline...</div>`;
 			
@@ -320,7 +326,7 @@
 
 			if (rawRes.error) { container.innerHTML = "Error loading data"; return; }
 
-			// Combine data into a flat local array for instant Search/Sort/Pagination
+			// Map all data into the global allLeads array
 			allLeads = rawRes.data.map(lead => ({
 				...lead,
 				customer: custRes.data?.find(c => c.enquiry_id === lead.id) || {},
@@ -328,28 +334,41 @@
 				statusLabel: statRes.data?.find(s => s.status_id === (detRes.data?.find(d => d.enquiry_id === lead.id)?.status_id))?.status_details || 'New'
 			}));
 
-			handleSearch(); // Triggers filter -> sort -> render
+			filteredLeads = [...allLeads]; // CRITICAL: Initialize this so renderTable works
+			renderTable(); 
 		}
 
-		// 3 & 4. Search and Sort Logic
 		function handleSearch() {
-			const query = document.getElementById('leadSearch').value.toLowerCase();
-			filteredLeads = allLeads.filter(l => 
-				(l.customer.customer_name?.toLowerCase().includes(query)) || 
-				(l.customer.email_id?.toLowerCase().includes(query)) ||
-				(l.email_id?.toLowerCase().includes(query))
-			);
-			currentPage = 1; // Reset to page 1 on search
-			handleSort();
+			searchQuery = document.getElementById('leadSearch').value.toLowerCase();
+			currentPage = 1; 
+
+			if (currentTab === 'projects') {
+				loadAdminProjects(); // Project search is server-side (Supabase)
+			} else {
+				// Enquiry/Quote search is client-side (Filtering local array)
+				filteredLeads = allLeads.filter(lead => 
+					(lead.customer?.customer_name?.toLowerCase().includes(searchQuery)) ||
+					(lead.customer?.email_id?.toLowerCase().includes(searchQuery)) ||
+					(lead.project_name?.toLowerCase().includes(searchQuery))
+				);
+				renderTable(); 
+			}
 		}
 
 		function handleSort() {
-			const val = document.getElementById('sortOrder').value;
-			if (val === 'newest') filteredLeads.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-			if (val === 'oldest') filteredLeads.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-			if (val === 'name') filteredLeads.sort((a, b) => (a.customer.customer_name || '').localeCompare(b.customer.customer_name || ''));
-			
-			renderTable();
+			sortBy = document.getElementById('sortOrder').value;
+			currentPage = 1;
+
+			if (currentTab === 'projects') {
+				loadAdminProjects();
+			} else {
+				// Sort the leads array based on selection
+				if (sortBy === 'newest') allLeads.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+				else if (sortBy === 'oldest') allLeads.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+				
+				filteredLeads = [...allLeads];
+				handleSearch(); // Re-apply search filter after sorting
+			}
 		}
 
 		// 5. Pagination and Table Rendering
@@ -1089,7 +1108,7 @@
 				label.innerHTML = originalHTML;
 				input.value = ''; 
 			}
-		}		
+		}
 		
         function toggleAllSiblings(btn) {
 			const checks = document.querySelectorAll('.sibling-checkbox');
@@ -1221,52 +1240,75 @@
 			}
 		}
 		
-		// NEW: Admin Project Dashboard Logic
 		async function loadAdminProjects() {
 			const grid = document.getElementById('projects-grid');
-			grid.innerHTML = `<div class="col-span-full p-20 text-center animate-pulse text-slate-400 font-bold text-[10px] uppercase tracking-widest">Syncing Projects...</div>`;
+			const pg = document.getElementById('pagination-controls');
+			grid.innerHTML = `<div class="col-span-full p-20 text-center animate-pulse text-slate-400 font-bold text-[10px] uppercase tracking-widest">Filtering Projects...</div>`;
 
-			const { data: projects, error } = await sb.from('projects').select('*').order('created_at', { ascending: false });
-			
-			if (error || !projects) {
-				grid.innerHTML = `<div class="col-span-full p-20 text-center text-slate-500 text-[10px] font-bold uppercase tracking-widest">No Active Projects Found</div>`;
+			let query = sb.from('projects').select('*', { count: 'exact' });
+
+			// Use the value from the search bar
+			const searchVal = document.getElementById('leadSearch').value.toLowerCase();
+			if (searchVal) {
+				query = query.or(`project_name.ilike.%${searchVal}%,client_email.ilike.%${searchVal}%`);
+			}
+
+			// Use the value from the sort dropdown
+			const sortVal = document.getElementById('sortOrder').value;
+			if (sortVal === 'newest') query = query.order('created_at', { ascending: false });
+			else if (sortVal === 'oldest') query = query.order('created_at', { ascending: true });
+			else query = query.order('project_name', { ascending: true });
+
+			// Pagination range
+			const start = (currentPage - 1) * itemsPerPage;
+			const end = start + itemsPerPage - 1;
+			query = query.range(start, end);
+
+			const { data: projects, count, error } = await query;
+			if (error) return console.error(error);
+
+			renderPagination(count);
+
+			if (!projects || projects.length === 0) {
+				grid.innerHTML = `<div class="col-span-full p-20 text-center text-slate-500 text-[10px] font-bold uppercase tracking-widest border border-dashed border-white/10 rounded-[32px]">No projects found</div>`;
+				pg.innerHTML = '';
 				return;
 			}
 
 			const phases = ['Initiation', 'Design Concept', 'Procurement', 'Installation', 'Handover'];
-
 			grid.innerHTML = projects.map(proj => `
 				<div class="glass-panel p-6 rounded-[32px] border border-white/5 hover:border-indigo-500/30 transition-all group">
-					<div class="mb-6">
-						<h3 class="text-lg font-black text-white uppercase tracking-tighter">${proj.project_name}</h3>
-						<p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none mt-1">${proj.client_email}</p>
-					</div>
-
-					<div class="mb-4">
-						<label class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block ml-1">Current Phase</label>
-						<select onchange="updateProjectField('${proj.id}', 'current_phase', this.value)" 
-								class="w-full bg-slate-950 border border-white/10 rounded-xl py-2.5 px-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500 cursor-pointer transition-colors">
-							${phases.map(p => `<option value="${p}" ${proj.current_phase === p ? 'selected' : ''}>${p}</option>`).join('')}
-						</select>
-					</div>
-
-					<div class="mb-6">
-						<label class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block ml-1">Progress Completion</label>
-						<select onchange="updateProjectField('${proj.id}', 'progress_percent', parseInt(this.value))" 
-								class="w-full bg-slate-950 border border-white/10 rounded-xl py-2.5 px-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500 cursor-pointer transition-colors">
-							${[0, 10, 25, 40, 50, 60, 75, 90, 100].map(v => `<option value="${v}" ${proj.progress_percent === v ? 'selected' : ''}>${v}% Complete</option>`).join('')}
-						</select>
-					</div>
-
-					<div class="mb-6 px-1">
-						<div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-							<div class="h-full bg-indigo-500 shadow-[0_0_15px_rgba(79,70,229,0.4)] transition-all duration-700" style="width: ${proj.progress_percent}%"></div>
+					<div class="mb-6 flex justify-between items-start">
+						<div>
+							<h3 class="text-lg font-black text-white uppercase tracking-tighter">${proj.project_name}</h3>
+							<p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">${proj.client_email}</p>
 						</div>
 					</div>
 
+					<div class="grid grid-cols-2 gap-3 mb-4">
+						<div>
+							<label class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Phase</label>
+							<select onchange="updateProjectField('${proj.id}', 'current_phase', this.value)" 
+									class="w-full bg-slate-950 border border-white/10 rounded-xl py-2 px-2 text-[9px] font-bold text-white outline-none">
+								${phases.map(p => `<option value="${p}" ${proj.current_phase === p ? 'selected' : ''}>${p}</option>`).join('')}
+							</select>
+						</div>
+						<div>
+							<label class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Completion</label>
+							<select onchange="updateProjectField('${proj.id}', 'progress_percent', parseInt(this.value))" 
+									class="w-full bg-slate-950 border border-white/10 rounded-xl py-2 px-2 text-[9px] font-bold text-white outline-none">
+								${[0, 10, 25, 50, 75, 100].map(v => `<option value="${v}" ${proj.progress_percent === v ? 'selected' : ''}>${v}%</option>`).join('')}
+							</select>
+						</div>
+					</div>
+
+					<div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden mb-6">
+						<div class="h-full bg-indigo-500 transition-all duration-700 shadow-[0_0_10px_rgba(79,70,229,0.4)]" style="width: ${proj.progress_percent}%"></div>
+					</div>
+
 					<button onclick="openProjectWorkspace('${proj.id}')" 
-							class="w-full py-3.5 bg-white/5 border border-white/10 rounded-2xl text-[9px] font-black text-white uppercase tracking-widest hover:bg-white hover:text-black transition-all active:scale-95">
-						Open Admin Workspace
+							class="w-full py-3 bg-white/5 border border-white/10 rounded-2xl text-[9px] font-black text-white uppercase tracking-widest hover:bg-white hover:text-black transition-all">
+						Enter Control Room
 					</button>
 				</div>
 			`).join('');
