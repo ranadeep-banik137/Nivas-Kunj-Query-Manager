@@ -97,6 +97,10 @@
 			from { opacity: 0; transform: translateY(10px); }
 			to { opacity: 1; transform: translateY(0); }
 		}
+		.toast-visible {
+			transform: translate(-50%, -20px) !important;
+			opacity: 1 !important;
+		}
     </style>
 </head>
 <body>
@@ -980,7 +984,9 @@
 					.eq('id', recordId);
 
 				if (dbError) throw dbError;
-
+				
+				showToast("File deleted successfully", "success");	
+					
 				// 4. REFRESH UI
 				// In your script, the ID is stored in currentProjectId globally
 				if (activeProjectId) {
@@ -994,6 +1000,30 @@
 				alert('Delete failed: ' + err.message);
 			}
 		}
+		
+		// Helper function for the Success Message (if you don't have one)
+		function showToast(message, type = "success") {
+			const toast = document.createElement('div');
+			toast.className = `fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest z-[100] transition-all duration-500 transform translate-y-20 shadow-2xl border ${
+				type === 'success' 
+				? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400' 
+				: 'bg-red-500/10 border-red-500/50 text-red-400'
+			}`;
+			toast.style.backdropFilter = "blur(12px)";
+			toast.innerText = message;
+			
+			document.body.appendChild(toast);
+			
+			// Animate In
+			setTimeout(() => toast.classList.remove('translate-y-20'), 100);
+			
+			// Animate Out & Remove
+			setTimeout(() => {
+				toast.classList.add('translate-y-20', 'opacity-0');
+				setTimeout(() => toast.remove(), 500);
+			}, 3000);
+		}
+		
 		
 		async function loadProjectAssets(projectId) {
 			try {
