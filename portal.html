@@ -1086,15 +1086,12 @@
 
 				if (dbError) throw dbError;
 				
-				const { data: updatedFiles } = await sb
+				// 4. REFRESH THE ASSETS UI IMMEDIATELY
+				const { data: updatedFiles, error: fetchError } = await sb
 					.from('project_files')
-					.select('*, profiles(email_id)')
+					.select('*')
 					.eq('project_id', activeProjectId)
-					.order('created_at', { ascending: false });
-
-				renderWorkspaceAssets(updatedFiles);
-				
-				
+					.order('created_at', { ascending: false }); // Latest first
 
 				if (!fetchError) {
 					renderWorkspaceAssets(updatedFiles);
