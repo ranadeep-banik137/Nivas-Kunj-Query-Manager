@@ -912,7 +912,6 @@
 				const isImage = /\.(jpg|jpeg|png|webp|avif|gif)$/i.test(file.img_url);
 				const date = new Date(file.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 				
-				// Use the global userEmail variable we have in the session
 				const isYou = file.uploaded_by === (window.userSession?.id); 
 
 				return `
@@ -922,9 +921,14 @@
 								? `<img src="${file.img_url}" class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-700">`
 								: `<div class="w-full h-full flex items-center justify-center"><i data-lucide="file-text" class="w-8 h-8 text-slate-700"></i></div>`
 							}
-							<a href="${file.img_url}" target="_blank" class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-indigo-600/20 backdrop-blur-sm transition-all">
-								<i data-lucide="external-link" class="text-white w-6 h-6"></i>
-							</a>
+							<div class="absolute inset-0 flex items-center justify-center gap-4 opacity-0 group-hover:opacity-100 bg-indigo-600/20 backdrop-blur-sm transition-all">
+								<a href="${file.img_url}" target="_blank" class="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors">
+									<i data-lucide="external-link" class="text-white w-5 h-5"></i>
+								</a>
+								<button onclick="deleteProjectAsset('${file.id}', '${file.img_url}')" class="p-2 bg-red-500/20 hover:bg-red-500 rounded-full transition-colors text-white">
+									<i data-lucide="trash-2" class="w-5 h-5"></i>
+								</button>
+							</div>
 						</div>
 						<div class="p-4 border-t border-white/5 bg-white/[0.01]">
 							<div class="flex flex-col gap-1">
@@ -942,6 +946,70 @@
 			lucide.createIcons();
 		}
 
+
+		async function deleteProjectAsset(recordId, fullImgUrl) {
+			if (!confirm("Are you sure you want to permanently delete this file?")) return;
+
+			try {
+				// 1. ROBUST PATH EXTRACTION
+				// The URL looks like: .../storage/v1/object/public/portal-files/PROJECT_ID/FILENAME.jpg
+				// We need: "PROJECT_ID/FILENAME.jpg"
+				const bucketName = 'portal-files';
+				const urlParts = fullImgUrl.split(`${bucketName}/`);
+				
+				if (urlParts.length < 2) {
+					throw new Error("Could not determine the file path from the URL provided.");
+				}
+
+				// Remove any URL parameters (like ?t=...) that Supabase adds for caching
+				const storagePath = urlParts[1].split('?')[0];
+
+				console.log("Deleting from Storage:", storagePath);
+
+				// 2. DELETE FROM STORAGE BUCKET
+				const { error: storageError } = await sb.storage
+					.from(bucketName)
+					.remove([storagePath]);
+
+				if (storageError) throw storageError;
+
+				// 3. DELETE FROM DATABASE (project_files table)
+				const { error: dbError } = await sb
+					.from('project_files')
+					.delete()
+					.eq('id', recordId);
+
+				if (dbError) throw dbError;
+
+				// 4. REFRESH UI
+				// In your script, the ID is stored in currentProjectId globally
+				if (activeProjectId) {
+					await loadProjectAssets(activeProjectId);
+				}
+
+				console.log("Asset successfully removed from storage and database.");
+
+			} catch (err) {
+				console.error('Delete error:', err);
+				alert('Delete failed: ' + err.message);
+			}
+		}
+		
+		async function loadProjectAssets(projectId) {
+			try {
+				const { data, error } = await sb
+					.from('project_files')
+					.select('*')
+					.eq('project_id', projectId)
+					.order('created_at', { ascending: false });
+
+				if (error) throw error;
+				renderWorkspaceAssets(data);
+			} catch (err) {
+				console.error('Error loading assets:', err);
+			}
+		}
+		
 
 		async function refreshAssets(projectId) {
 			const { data: newFiles, error } = await sb
