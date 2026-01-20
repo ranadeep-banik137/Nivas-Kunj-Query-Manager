@@ -277,7 +277,12 @@
 				window.location.href = 'index.html';
 				return;
 			}
-
+			
+			window.userSession = {
+				id: user.id,
+				email: user.email
+			};
+			
 			try {
 				const { data: profile, error: profileError } = await sb
 					.from('profiles')
@@ -819,8 +824,7 @@
 			activeProjectId = projectId;
 			const workspace = document.getElementById('project-workspace');
 			workspace.classList.remove('hidden');
-			document.body.style.overflow = 'hidden'; 
-
+			document.body.style.overflow = 'hidden';
 			try {
 				// 1. Fetch Project Core Data
 				const { data: proj } = await sb.from('projects').select('*').eq('id', projectId).single();
@@ -895,7 +899,8 @@
 				
 				// 5. Render
 				renderWorkspaceAssets(pFiles); 
-				renderWorkspaceChat(); 
+				await loadWorkspaceChat(activeProjectId);
+				//renderWorkspaceChat();
 				lucide.createIcons();
 
 			} catch (err) {
@@ -1056,90 +1061,85 @@
 
 		async function sendWorkspaceMessage() {
 			const input = document.getElementById('workspace-msg-input');
-			const text = input.value.trim();
-			
-			if (!text || activeEnquiryIds.length === 0) return;
+			const msg = input.value.trim();
+			console.log('Active User: ', window.userSession.id)
+			if (!msg || !activeProjectId) return;
 
-			// Use the primary enquiry_id for this project to log the comment
-			const targetEnquiryId = activeEnquiryIds[0];
+			try {
+				const { error } = await sb
+					.from('project_comments') // Updated table name
+					.insert([{
+						project_id: activeProjectId,
+						author_id: window.userSession.id, // Current logged-in user ID
+						description: msg
+					}]);
 
-			const { error } = await sb
-				.from('enquiry_comments')
-				.insert([
-					{ 
-						enquiry_id: targetEnquiryId,
-						comments: text, // Client column
-						created_at: new Date().toISOString()
-					}
-				]);
+				if (error) throw error;
 
-			if (error) {
-				console.error("Post error:", error);
-				alert("Failed to post comment");
-			} else {
 				input.value = '';
-				renderWorkspaceChat(); // Refresh board
+				await loadWorkspaceChat(activeProjectId);
+			} catch (err) {
+				console.error('Error sending message:', err);
+				showToast("Message failed to send", "error");
 			}
 		}
 
-		const formatDate = (dateStr) => {
-			const d = new Date(dateStr);
-			return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + 
-				   d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-		};
 
-		async function renderWorkspaceChat() {
-			const container = document.getElementById('workspace-chat-log');
-			
-			// Fetch from enquiry_comments based on all project enquiry IDs
-			const { data: allComments, error } = await sb
-				.from('enquiry_comments')
-				.select('*')
-				.in('enquiry_id', activeEnquiryIds)
-				.order('created_at', { ascending: true });
+		async function loadWorkspaceChat(projectId) {
+			try {
+				console.log('Project ID :', projectId)
+				// We fetch from project_comments and JOIN with profiles to get the is_admin flag
+				const { data, error } = await sb
+					.from('project_comments')
+					.select(`
+						*,
+						profiles:author_id (is_admin)
+					`)
+					.eq('project_id', projectId)
+					.order('created_at', { ascending: true });
 
-			if (error) {
-				container.innerHTML = `<p class="text-center text-red-400 text-[10px]">Error loading discussion</p>`;
-				return;
-			}
-
-			container.innerHTML = allComments.map(entry => {
-				let html = '';
+				if (error) throw error;
 				
-				// 1. Handle Admin/Org Comment (Left Side)
-				if (entry.org_comments) {
-					html += `
-						<div class="flex justify-start mb-6 animate-in fade-in slide-in-from-left-4 duration-500">
-							<div class="max-w-[80%]">
-								<div class="flex items-center gap-2 mb-1 ml-1">
-									<span class="text-[8px] font-black text-indigo-400 uppercase tracking-[0.2em]">Studio Admin</span>
-									<span class="text-[7px] text-slate-600 font-bold">${formatDate(entry.created_at)}</span>
-								</div>
-								<div class="bg-slate-900 border border-white/10 text-slate-200 p-4 rounded-2xl rounded-tl-none text-xs leading-relaxed shadow-2xl">
-									${entry.org_comments}
-								</div>
-							</div>
-						</div>
-					`;
-				}
+				// Always pass an array (data || []) to prevent the .map() error
+				renderWorkspaceChat(data || []);
+			} catch (err) {
+				console.error('Chat Loading Error:', err);
+				renderWorkspaceChat([]); 
+			}
+		}
 
-				// 2. Handle Client Comment (Right Side)
-				if (entry.comments) {
-					html += `
-						<div class="flex justify-end mb-6 animate-in fade-in slide-in-from-right-4 duration-500">
-							<div class="max-w-[80%] text-right">
-								<div class="flex items-center justify-end gap-2 mb-1 mr-1">
-									<span class="text-[7px] text-slate-500 font-bold">${formatDate(entry.created_at)}</span>
-									<span class="text-[8px] font-black text-emerald-500 uppercase tracking-[0.2em]">You</span>
-								</div>
-								<div class="bg-indigo-600 text-white p-4 rounded-2xl rounded-tr-none text-xs leading-relaxed shadow-lg shadow-indigo-500/20 inline-block text-left">
-									${entry.comments}
-								</div>
+		function renderWorkspaceChat(comments) {
+			const container = document.getElementById('workspace-chat-log');
+			if (!container) return;
+
+			// Safety check to ensure comments is an array
+			const chatItems = Array.isArray(comments) ? comments : [];
+
+			container.innerHTML = chatItems.map(comment => {
+				// The join from Step 1 provides comment.profiles.is_admin
+				const isAuthorAdmin = comment.profiles?.is_admin === true;
+				
+				// ADMIN = LEFT, CLIENT = RIGHT
+				const alignmentClass = isAuthorAdmin ? 'justify-start' : 'justify-end';
+				const bubbleColor = isAuthorAdmin 
+					? 'bg-slate-800/80 border border-white/10 rounded-2xl rounded-tl-none' 
+					: 'bg-indigo-600 text-white rounded-2xl rounded-tr-none';
+
+				return `
+					<div class="flex ${alignmentClass} mb-4">
+						<div class="max-w-[85%] ${bubbleColor} p-4 shadow-xl">
+							<div class="flex items-center gap-2 mb-1">
+								<span class="text-[7px] font-black uppercase tracking-widest opacity-60">
+									${isAuthorAdmin ? 'Architect' : 'Client'}
+								</span>
+							</div>
+							<p class="text-xs leading-relaxed font-medium">${comment.description}</p>
+							<div class="mt-2 text-[7px] opacity-40 uppercase font-bold text-right">
+								${new Date(comment.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 							</div>
 						</div>
-					`;
-				}
-				return html;
+					</div>
+				`;
 			}).join('');
 
 			container.scrollTop = container.scrollHeight;
