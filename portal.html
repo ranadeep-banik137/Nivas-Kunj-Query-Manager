@@ -278,6 +278,19 @@
 				return;
 			}
 			
+			const initialSessionId = user.id;
+			
+			// 2. Watch for session changes (Collision Detection)
+			sb.auth.onAuthStateChange((event, session) => {
+				if (event === 'SIGNED_OUT' || !session) {
+					window.location.href = 'index.html';
+				} else if (session.user.id !== initialSessionId) {
+					// Identity Theft Detection: If the ID in storage changed to User B, kill this tab
+					alert("Security: Another user has logged in. Closing session.");
+					window.location.href = 'index.html';
+				}
+			});
+			
 			window.userSession = {
 				id: user.id,
 				email: user.email

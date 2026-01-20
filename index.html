@@ -184,6 +184,12 @@
         }
 
         document.getElementById('mainBtn').onclick = async () => {
+		
+			const { data: { session } } = await sb.auth.getSession();
+			if (session) {
+				window.location.href = 'portal.html';
+				return; // Stop the login attempt for User B
+			}
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             const confirm = document.getElementById('confirm-password').value;
@@ -220,9 +226,30 @@
             await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/portal.html' } });
         };
 
-        window.onload = () => {
-            if (window.location.hash.includes("type=recovery")) toggleMode('update');
-        };
+		// 1. BROADCAST LISTENER: If another tab logs in, redirect this tab immediately
+		window.addEventListener('storage', (event) => {
+			// Supabase stores auth data in localStorage
+			// If the auth token appears or changes, it means a session is now active
+			if (event.key && event.key.includes('supabase.auth.token') && event.newValue) {
+				console.log("Session detected from another tab. Redirecting...");
+				window.location.href = 'portal.html';
+			}
+		});
+		
+        window.onload = async () => {
+			// 1. Check for an existing session immediately
+			const { data: { session }, error } = await sb.auth.getSession();
+
+			// 2. If a session exists, redirect to portal.html and stop execution
+			if (session && session.user) {
+				console.log("Active session detected, redirecting...");
+				window.location.href = 'portal.html';
+				return; 
+			}
+
+			// 3. Existing logic for password recovery
+			if (window.location.hash.includes("type=recovery")) toggleMode('update');
+		};
     </script>
 </body>
 </html>
