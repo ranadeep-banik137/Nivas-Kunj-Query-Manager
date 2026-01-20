@@ -295,6 +295,8 @@
 					window.location.href = 'index.html';
 					return;
 				}
+				
+				window.currentUserProfile = profile
 
 				if (loader) loader.classList.add('hidden');
 
@@ -523,15 +525,22 @@
 					</div>
 					
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-2">
-						${commRes.data?.length > 0 ? commRes.data.map(c => `
-							<div class="p-4 bg-white/5 border border-white/5 rounded-xl">
-								<div class="flex justify-between items-center mb-1">
-									<span class="text-[8px] font-black text-indigo-400 uppercase tracking-widest">${c.org_comments || 'Note'}</span>
-									<span class="text-[8px] text-slate-500 font-medium">${new Date(c.created_at).toLocaleDateString()}</span>
+						${commRes.data?.length > 0 ? commRes.data.map(c => {
+							const isAdminNote = c.org_comments !== null && c.org_comments !== '';
+							const noteText = isAdminNote ? c.org_comments : c.comments;
+							
+							return `
+								<div class="p-4 rounded-xl ${isAdminNote ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-white/5 border border-white/5'}">
+									<div class="flex justify-between items-center mb-1">
+										<span class="text-[8px] font-black uppercase tracking-widest ${isAdminNote ? 'text-amber-500' : 'text-indigo-400'}">
+											${isAdminNote ? 'Admin Note' : 'Client Message'}
+										</span>
+										<span class="text-[8px] text-slate-500 font-medium">${new Date(c.created_at).toLocaleDateString()}</span>
+									</div>
+									<p class="text-[11px] text-slate-300 leading-snug">${noteText}</p>
 								</div>
-								<p class="text-[11px] text-slate-300 leading-snug">${c.comments}</p>
-							</div>
-						`).join('') : '<p class="text-[10px] text-slate-500 italic col-span-2 text-center py-4">No interactions recorded.</p>'}
+							`;
+						}).join('') : '<p class="text-[10px] text-slate-500 italic col-span-2 text-center py-4">No interactions recorded.</p>'}
 					</div>
 				</div>
 			
@@ -720,8 +729,28 @@
 		async function addComment(leadId) {
 			const commentText = document.getElementById('new-comment').value;
 			if (!commentText.trim()) return;
-			await sb.from('enquiry_comments').insert({ enquiry_id: leadId, comments: commentText, org_comments: "Admin Note" });
-			manageLead(leadId);
+			
+			try {
+				const isAdmin = window.currentUserProfile.is_admin === true;
+				const payload = {
+					enquiry_id: leadId,
+				};
+				
+				if (isAdmin) {
+					payload.org_comments = commentText; // Admin/Internal column
+					payload.comments = null;
+				} else {
+					payload.comments = commentText;     // Client/External column
+					payload.org_comments = null;
+				}
+				
+				//await sb.from('enquiry_comments').insert({ enquiry_id: leadId, comments: commentText, org_comments: "Admin Note" });
+				const { error } = await sb.from('enquiry_comments').insert([payload]);
+				if (error) throw error;
+				manageLead(leadId);
+			} catch (err) {
+				console.error('Error adding enquiry comment:', err);
+			}
 		}
 
 		function getQuoteHTML(q, images) {
