@@ -277,7 +277,12 @@
 				window.location.href = 'index.html';
 				return;
 			}
-
+			
+			window.userSession = {
+				id: user.id,
+				email: user.email
+			};
+			
 			try {
 				const { data: profile, error: profileError } = await sb
 					.from('profiles')
@@ -290,6 +295,8 @@
 					window.location.href = 'index.html';
 					return;
 				}
+				
+				window.currentUserProfile = profile
 
 				if (loader) loader.classList.add('hidden');
 
@@ -463,9 +470,16 @@
 			const email = customer?.email_id || lead?.email_id;
 			const quote = quoteRes.data;
 			const images = imagesRes.data || [];
-
-			const { data: profile } = await sb.from('profiles').select('*').eq('client_email', email).single();
-			const isRegistered = !!profile;
+			const currentProjectId = details.project_id
+			//const { data: profile } = await sb.from('profiles').select('*').eq('email', email).single();
+			//const isRegistered = !!profile;
+			
+			const { data: profileData, error: profileError } = await sb
+				.from('profiles')
+				.select('id')
+				.eq('email', email);
+			const isRegistered = profileData && profileData.length > 0;
+			
 			
 			document.getElementById('modal-title').innerText = `${customer?.customer_name || 'New Lead'} - Query`;
 			document.getElementById('modal-subtitle').innerText = lead.query_data;
@@ -518,15 +532,22 @@
 					</div>
 					
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-2">
-						${commRes.data?.length > 0 ? commRes.data.map(c => `
-							<div class="p-4 bg-white/5 border border-white/5 rounded-xl">
-								<div class="flex justify-between items-center mb-1">
-									<span class="text-[8px] font-black text-indigo-400 uppercase tracking-widest">${c.org_comments || 'Note'}</span>
-									<span class="text-[8px] text-slate-500 font-medium">${new Date(c.created_at).toLocaleDateString()}</span>
+						${commRes.data?.length > 0 ? commRes.data.map(c => {
+							const isAdminNote = c.org_comments !== null && c.org_comments !== '';
+							const noteText = isAdminNote ? c.org_comments : c.comments;
+							
+							return `
+								<div class="p-4 rounded-xl ${isAdminNote ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-white/5 border border-white/5'}">
+									<div class="flex justify-between items-center mb-1">
+										<span class="text-[8px] font-black uppercase tracking-widest ${isAdminNote ? 'text-amber-500' : 'text-indigo-400'}">
+											${isAdminNote ? 'Admin Note' : 'Client Message'}
+										</span>
+										<span class="text-[8px] text-slate-500 font-medium">${new Date(c.created_at).toLocaleDateString()}</span>
+									</div>
+									<p class="text-[11px] text-slate-300 leading-snug">${noteText}</p>
 								</div>
-								<p class="text-[11px] text-slate-300 leading-snug">${c.comments}</p>
-							</div>
-						`).join('') : '<p class="text-[10px] text-slate-500 italic col-span-2 text-center py-4">No interactions recorded.</p>'}
+							`;
+						}).join('') : '<p class="text-[10px] text-slate-500 italic col-span-2 text-center py-4">No interactions recorded.</p>'}
 					</div>
 				</div>
 			
@@ -541,7 +562,11 @@
 								<p class="text-[9px] text-emerald-300/60 font-medium">Project ID: ${details.project_id.slice(0,8)}... is live.</p>
 							</div>
 						</div>
-						<span class="px-4 py-2 bg-emerald-500 text-white text-[9px] font-black uppercase rounded-lg">Live</span>
+						<button onclick="goToProjectFromEnquiry('${details.project_id}')" 
+								class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 group">
+							Go to Project Workspace
+							<i data-lucide="arrow-right" class="w-3 h-3 group-hover:translate-x-1 transition-transform"></i>
+						</button>
 					</div>
 				` : `
 					<div id="onboarding-zone" class="mt-8">
@@ -663,6 +688,26 @@
 			} catch (err) { zone.innerHTML = `<p class="text-[9px] text-red-400 text-center uppercase font-black">Cluster Scan Failed</p>`; }
 		}
 		
+		function goToProjectFromEnquiry(projectId) {
+			// 1. Close the Lead/Enquiry Modal
+			const leadModal = document.getElementById('lead-modal');
+			if (leadModal) leadModal.classList.add('hidden');
+
+			// 2. Switch the main view to 'projects'
+			switchTab('projects');
+
+			// 3. Open the specific project workspace
+			// We wrap this in a tiny timeout to ensure the view switch completes
+			setTimeout(() => {
+				openProjectWorkspace(projectId);
+				
+				// Success feedback
+				if (typeof showToast === 'function') {
+					showToast("Navigated to Project Workspace", "success");
+				}
+			}, 100);
+		}
+		
 		async function executeBulkOnboarding(primaryId, email) {
 			const zone = document.getElementById('onboarding-zone');
 			const customerName = document.getElementById('edit-name').value || "New Client";
@@ -715,8 +760,28 @@
 		async function addComment(leadId) {
 			const commentText = document.getElementById('new-comment').value;
 			if (!commentText.trim()) return;
-			await sb.from('enquiry_comments').insert({ enquiry_id: leadId, comments: commentText, org_comments: "Admin Note" });
-			manageLead(leadId);
+			
+			try {
+				const isAdmin = window.currentUserProfile.is_admin === true;
+				const payload = {
+					enquiry_id: leadId,
+				};
+				
+				if (isAdmin) {
+					payload.org_comments = commentText; // Admin/Internal column
+					payload.comments = null;
+				} else {
+					payload.comments = commentText;     // Client/External column
+					payload.org_comments = null;
+				}
+				
+				//await sb.from('enquiry_comments').insert({ enquiry_id: leadId, comments: commentText, org_comments: "Admin Note" });
+				const { error } = await sb.from('enquiry_comments').insert([payload]);
+				if (error) throw error;
+				manageLead(leadId);
+			} catch (err) {
+				console.error('Error adding enquiry comment:', err);
+			}
 		}
 
 		function getQuoteHTML(q, images) {
@@ -819,8 +884,7 @@
 			activeProjectId = projectId;
 			const workspace = document.getElementById('project-workspace');
 			workspace.classList.remove('hidden');
-			document.body.style.overflow = 'hidden'; 
-
+			document.body.style.overflow = 'hidden';
 			try {
 				// 1. Fetch Project Core Data
 				const { data: proj } = await sb.from('projects').select('*').eq('id', projectId).single();
@@ -895,7 +959,8 @@
 				
 				// 5. Render
 				renderWorkspaceAssets(pFiles); 
-				renderWorkspaceChat(); 
+				await loadWorkspaceChat(activeProjectId);
+				//renderWorkspaceChat();
 				lucide.createIcons();
 
 			} catch (err) {
@@ -983,7 +1048,10 @@
 					.delete()
 					.eq('id', recordId);
 
-				if (dbError) throw dbError;
+				if (dbError) {
+					console.error("Database Deletion Error:", dbError.message);
+					throw new Error("DB Error: " + dbError.message);
+				}
 				
 				showToast("File deleted successfully", "success");	
 					
@@ -1053,90 +1121,85 @@
 
 		async function sendWorkspaceMessage() {
 			const input = document.getElementById('workspace-msg-input');
-			const text = input.value.trim();
-			
-			if (!text || activeEnquiryIds.length === 0) return;
+			const msg = input.value.trim();
+			console.log('Active User: ', window.userSession.id)
+			if (!msg || !activeProjectId) return;
 
-			// Use the primary enquiry_id for this project to log the comment
-			const targetEnquiryId = activeEnquiryIds[0];
+			try {
+				const { error } = await sb
+					.from('project_comments') // Updated table name
+					.insert([{
+						project_id: activeProjectId,
+						author_id: window.userSession.id, // Current logged-in user ID
+						description: msg
+					}]);
 
-			const { error } = await sb
-				.from('enquiry_comments')
-				.insert([
-					{ 
-						enquiry_id: targetEnquiryId,
-						comments: text, // Client column
-						created_at: new Date().toISOString()
-					}
-				]);
+				if (error) throw error;
 
-			if (error) {
-				console.error("Post error:", error);
-				alert("Failed to post comment");
-			} else {
 				input.value = '';
-				renderWorkspaceChat(); // Refresh board
+				await loadWorkspaceChat(activeProjectId);
+			} catch (err) {
+				console.error('Error sending message:', err);
+				showToast("Message failed to send", "error");
 			}
 		}
 
-		const formatDate = (dateStr) => {
-			const d = new Date(dateStr);
-			return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + 
-				   d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-		};
 
-		async function renderWorkspaceChat() {
-			const container = document.getElementById('workspace-chat-log');
-			
-			// Fetch from enquiry_comments based on all project enquiry IDs
-			const { data: allComments, error } = await sb
-				.from('enquiry_comments')
-				.select('*')
-				.in('enquiry_id', activeEnquiryIds)
-				.order('created_at', { ascending: true });
+		async function loadWorkspaceChat(projectId) {
+			try {
+				console.log('Project ID :', projectId)
+				// We fetch from project_comments and JOIN with profiles to get the is_admin flag
+				const { data, error } = await sb
+					.from('project_comments')
+					.select(`
+						*,
+						profiles:author_id (is_admin)
+					`)
+					.eq('project_id', projectId)
+					.order('created_at', { ascending: true });
 
-			if (error) {
-				container.innerHTML = `<p class="text-center text-red-400 text-[10px]">Error loading discussion</p>`;
-				return;
-			}
-
-			container.innerHTML = allComments.map(entry => {
-				let html = '';
+				if (error) throw error;
 				
-				// 1. Handle Admin/Org Comment (Left Side)
-				if (entry.org_comments) {
-					html += `
-						<div class="flex justify-start mb-6 animate-in fade-in slide-in-from-left-4 duration-500">
-							<div class="max-w-[80%]">
-								<div class="flex items-center gap-2 mb-1 ml-1">
-									<span class="text-[8px] font-black text-indigo-400 uppercase tracking-[0.2em]">Studio Admin</span>
-									<span class="text-[7px] text-slate-600 font-bold">${formatDate(entry.created_at)}</span>
-								</div>
-								<div class="bg-slate-900 border border-white/10 text-slate-200 p-4 rounded-2xl rounded-tl-none text-xs leading-relaxed shadow-2xl">
-									${entry.org_comments}
-								</div>
-							</div>
-						</div>
-					`;
-				}
+				// Always pass an array (data || []) to prevent the .map() error
+				renderWorkspaceChat(data || []);
+			} catch (err) {
+				console.error('Chat Loading Error:', err);
+				renderWorkspaceChat([]); 
+			}
+		}
 
-				// 2. Handle Client Comment (Right Side)
-				if (entry.comments) {
-					html += `
-						<div class="flex justify-end mb-6 animate-in fade-in slide-in-from-right-4 duration-500">
-							<div class="max-w-[80%] text-right">
-								<div class="flex items-center justify-end gap-2 mb-1 mr-1">
-									<span class="text-[7px] text-slate-500 font-bold">${formatDate(entry.created_at)}</span>
-									<span class="text-[8px] font-black text-emerald-500 uppercase tracking-[0.2em]">You</span>
-								</div>
-								<div class="bg-indigo-600 text-white p-4 rounded-2xl rounded-tr-none text-xs leading-relaxed shadow-lg shadow-indigo-500/20 inline-block text-left">
-									${entry.comments}
-								</div>
+		function renderWorkspaceChat(comments) {
+			const container = document.getElementById('workspace-chat-log');
+			if (!container) return;
+
+			// Safety check to ensure comments is an array
+			const chatItems = Array.isArray(comments) ? comments : [];
+
+			container.innerHTML = chatItems.map(comment => {
+				// The join from Step 1 provides comment.profiles.is_admin
+				const isAuthorAdmin = comment.profiles?.is_admin === true;
+				
+				// ADMIN = LEFT, CLIENT = RIGHT
+				const alignmentClass = isAuthorAdmin ? 'justify-start' : 'justify-end';
+				const bubbleColor = isAuthorAdmin 
+					? 'bg-slate-800/80 border border-white/10 rounded-2xl rounded-tl-none' 
+					: 'bg-indigo-600 text-white rounded-2xl rounded-tr-none';
+
+				return `
+					<div class="flex ${alignmentClass} mb-4">
+						<div class="max-w-[85%] ${bubbleColor} p-4 shadow-xl">
+							<div class="flex items-center gap-2 mb-1">
+								<span class="text-[7px] font-black uppercase tracking-widest opacity-60">
+									${isAuthorAdmin ? 'Architect' : 'Client'}
+								</span>
+							</div>
+							<p class="text-xs leading-relaxed font-medium">${comment.description}</p>
+							<div class="mt-2 text-[7px] opacity-40 uppercase font-bold text-right">
+								${new Date(comment.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 							</div>
 						</div>
-					`;
-				}
-				return html;
+					</div>
+				`;
 			}).join('');
 
 			container.scrollTop = container.scrollHeight;
