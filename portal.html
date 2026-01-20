@@ -983,7 +983,10 @@
 					.delete()
 					.eq('id', recordId);
 
-				if (dbError) throw dbError;
+				if (dbError) {
+					console.error("Database Deletion Error:", dbError.message);
+					throw new Error("DB Error: " + dbError.message);
+				}
 				
 				showToast("File deleted successfully", "success");	
 					
