@@ -220,9 +220,20 @@
             await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/portal.html' } });
         };
 
-        window.onload = () => {
-            if (window.location.hash.includes("type=recovery")) toggleMode('update');
-        };
+        window.onload = async () => {
+			// 1. Check for an existing session immediately
+			const { data: { session }, error } = await sb.auth.getSession();
+
+			// 2. If a session exists, redirect to portal.html and stop execution
+			if (session && session.user) {
+				console.log("Active session detected, redirecting...");
+				window.location.href = 'portal.html';
+				return; 
+			}
+
+			// 3. Existing logic for password recovery
+			if (window.location.hash.includes("type=recovery")) toggleMode('update');
+		};
     </script>
 </body>
 </html>
