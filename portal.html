@@ -894,74 +894,125 @@
 		let activeEnquiryIds = []; // Global to keep track of IDs for messaging
 
 		async function openProjectWorkspace(projectId) {
-			activeProjectId = projectId;
+			activeProjectId = projectId; // Using activeProjectId as per your existing code
 			const workspace = document.getElementById('project-workspace');
 			workspace.classList.remove('hidden');
 			document.body.style.overflow = 'hidden';
+
 			try {
 				// 1. Fetch Project Core Data
 				const { data: proj } = await sb.from('projects').select('*').eq('id', projectId).single();
-				
-				// 1. Define the standard phase sequence
+
+				// --- NEW LOGIC START: Fetch Project Details (Site, Area, Type) ---
+				// Get all enquiry IDs linked to this project
+				const { data: enqLinks } = await sb.from('enquiry_details').select('enquiry_id').eq('project_id', projectId);
+				const enqIds = enqLinks ? enqLinks.map(l => l.enquiry_id) : [];
+
+				// Fetch details from raw_enquiries and quote_details
+				const [rawRes, quoteRes] = await Promise.all([
+					sb.from('raw_enquiries').select('id, is_quote').in('id', enqIds),
+					sb.from('quote_details').select('*').in('enquiry_id', enqIds)
+				]);
+
+				let projectSite = "";
+				let projectArea = "N/A";
+				let projectType = "General Enquiry";
+
+				// Find the specific enquiry that is marked as a quote
+				const quoteEnquiry = rawRes.data?.find(r => r.is_quote === true);
+				if (quoteEnquiry) {
+					const qDetail = quoteRes.data?.find(q => q.enquiry_id === quoteEnquiry.id);
+					if (qDetail) {
+						// Merge Pincode, Landmark, City for the address
+						projectSite = [qDetail.pincode, qDetail.landmark, qDetail.city].filter(Boolean).join(', ');
+						projectArea = qDetail.area_sqft ? `${qDetail.area_sqft} Sq. Ft.` : "N/A";
+						projectType = qDetail.flat_type || "Standard Project";
+					}
+				}
+				// --- NEW LOGIC END ---
+
+				// 2. Timeline Logic (Existing)
 				const phases = ['Initiation', 'Design Concept', 'Procurement', 'Installation', 'Handover'];
-
-				// 2. Clean the DB value for comparison (removing spaces and making lowercase)
 				const dbPhase = (proj.current_phase || "").trim().toLowerCase();
-
-				// 3. Find which index we are currently at
 				const currentIdx = phases.findIndex(p => p.toLowerCase() === dbPhase);
-				
-				
-				// 4. Render the UI
-				document.getElementById('luxury-timeline').innerHTML = phases.map((phase, i) => {
-					const isCompleted = i < currentIdx;
-					const isActive = i === currentIdx;
-					
-					return `
-						<div class="relative pl-12 mb-10 last:mb-0">
-							${i !== phases.length - 1 ? `
-								<div class="absolute left-[15px] top-8 w-[2px] h-full 
-									${i < currentIdx ? 'bg-indigo-500' : 'bg-white/5'}"></div>
-							` : ''}
 
-							<div class="absolute left-0 top-0 w-8 h-8 rounded-full border-2 z-10 flex items-center justify-center transition-all duration-700 
-								${isCompleted ? 'bg-indigo-600 border-indigo-400 shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 
-								  isActive ? 'bg-white border-white shadow-[0_0_20px_rgba(255,255,255,0.3)]' : 
-								  'bg-slate-900 border-white/10'}">
-								
-								${isCompleted ? '<i data-lucide="check" class="w-4 h-4 text-white"></i>' : 
-								  `<span class="text-[10px] font-black ${isActive ? 'text-black' : 'text-slate-600'}">${i + 1}</span>`}
+				// 3. Render the UI
+				// We prepend the Project Details section before the timeline inside the sidebar area
+				document.getElementById('luxury-timeline').innerHTML = `
+					<div class="mb-10 p-5 bg-white/5 rounded-3xl border border-white/10 space-y-4">
+						<div class="space-y-1.5">
+							<label class="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">Project Name (Editable)</label>
+							<input id="update-project-name" type="text" value="${proj.project_name}" 
+								class="w-full px-4 py-2 bg-slate-950 border border-white/5 rounded-xl text-[11px] font-bold text-white outline-none focus:border-indigo-500 transition-all">
+						</div>
+
+						<div class="space-y-1.5">
+							<label class="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">Project Site (Editable)</label>
+							<textarea id="update-project-site" rows="2"
+								class="w-full px-4 py-2 bg-slate-950 border border-white/5 rounded-xl text-[11px] font-bold text-white outline-none focus:border-indigo-500 transition-all">${projectSite}</textarea>
+						</div>
+
+						<div class="grid grid-cols-2 gap-3 pt-2">
+							<div class="p-3 bg-slate-900/50 rounded-xl border border-white/5">
+								<p class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Area</p>
+								<p class="text-[10px] font-bold text-indigo-400">${projectArea}</p>
 							</div>
-
-							<div class="transition-all duration-500 ${isActive ? 'translate-x-2' : ''}">
-								<h4 class="text-[11px] font-black uppercase tracking-[0.2em] 
-									${isActive ? 'text-white' : isCompleted ? 'text-indigo-300' : 'text-slate-600'}">
-									${phase}
-								</h4>
-								${isActive ? `
-									<div class="flex items-center gap-2 mt-1">
-										<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-										<span class="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Active Phase</span>
-									</div>
-								` : ''}
+							<div class="p-3 bg-slate-900/50 rounded-xl border border-white/5">
+								<p class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Type</p>
+								<p class="text-[10px] font-bold text-white truncate">${projectType}</p>
 							</div>
 						</div>
-					`;
-				}).join('');
+						<button id="overview-save-btn" onclick="saveProjectOverview('${projectId}', ${JSON.stringify(enqIds)})" 
+							class="w-full py-2.5 mt-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2">
+							<i data-lucide="save" class="w-3.5 h-3.5"></i> Update Details
+						</button>
+					</div>
 
-				lucide.createIcons();
-				
-				// 2. Fetch Linked Enquiry IDs (for chat)
-				const { data: links } = await sb.from('enquiry_details').select('enquiry_id').eq('project_id', projectId);
-				activeEnquiryIds = links ? links.map(l => l.enquiry_id) : [];
+					<h4 class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6 px-2">Project Progress</h4>
+					
+					${phases.map((phase, i) => {
+						const isCompleted = i < currentIdx;
+						const isActive = i === currentIdx;
+						
+						return `
+							<div class="relative pl-12 mb-10 last:mb-0">
+								${i !== phases.length - 1 ? `
+									<div class="absolute left-[15px] top-8 w-[2px] h-full ${i < currentIdx ? 'bg-indigo-500' : 'bg-white/5'}"></div>
+								` : ''}
 
-				// 3. Update Header
+								<div class="absolute left-0 top-0 w-8 h-8 rounded-full border-2 z-10 flex items-center justify-center transition-all duration-700 
+									${isCompleted ? 'bg-indigo-600 border-indigo-400 shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 
+									  isActive ? 'bg-white border-white shadow-[0_0_20px_rgba(255,255,255,0.3)]' : 
+									  'bg-slate-900 border-white/10'}">
+									
+									${isCompleted ? '<i data-lucide="check" class="w-4 h-4 text-white"></i>' : 
+									  `<span class="text-[10px] font-black ${isActive ? 'text-black' : 'text-slate-600'}">${i + 1}</span>`}
+								</div>
+
+								<div class="transition-all duration-500 ${isActive ? 'translate-x-2' : ''}">
+									<h4 class="text-[11px] font-black uppercase tracking-[0.2em] 
+										${isActive ? 'text-white' : isCompleted ? 'text-indigo-300' : 'text-slate-600'}">
+										${phase}
+									</h4>
+									${isActive ? `
+										<div class="flex items-center gap-2 mt-1">
+											<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+											<span class="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Active Phase</span>
+										</div>
+									` : ''}
+								</div>
+							</div>
+						`;
+					}).join('')}
+				`;
+
+				// 4. Update Header (Existing)
 				document.getElementById('workspace-title-area').innerHTML = `
 					<h1 class="text-4xl font-black text-white tracking-tighter uppercase">${proj.project_name}</h1>
 					<p class="text-indigo-400 font-bold text-[10px] uppercase tracking-widest mt-1">${proj.client_email}</p>
 				`;
 
-				// 4. Fetch Files directly (No Joins)
+				// 5. Fetch Files (Existing)
 				const { data: pFiles, error: fError } = await sb
 					.from('project_files')
 					.select('*')
@@ -970,14 +1021,57 @@
 
 				if (fError) console.error("File fetch error:", fError);
 				
-				// 5. Render
+				// 6. Final Rendering and Tool setup
 				renderWorkspaceAssets(pFiles); 
 				await loadWorkspaceChat(activeProjectId);
-				//renderWorkspaceChat();
+
+				// Update Save Button to handle Project Updates
+				document.getElementById('overview-save-btn').onclick = () => saveProjectOverview(projectId, enqIds);
+
 				lucide.createIcons();
 
 			} catch (err) {
 				console.error("Workspace Error:", err);
+			}
+		}
+
+		// Logic for saving the edited Project Name and Site
+		async function saveProjectOverview(projectId, enqIds) {
+			const newName = document.getElementById('update-project-name').value;
+			const newSite = document.getElementById('update-project-site').value;
+			const saveBtn = document.getElementById('overview-save-btn');
+
+			saveBtn.innerText = "UPDATING...";
+			saveBtn.disabled = true;
+
+			try {
+				// 1. Update Project Name
+				await sb.from('projects').update({ project_name: newName }).eq('id', projectId);
+
+				// 2. Update Site Details in quote_details (if quote exists)
+				const { data: quotes } = await sb.from('raw_enquiries')
+					.select('id')
+					.eq('is_quote', true)
+					.in('id', enqIds);
+
+				if (quotes && quotes.length > 0) {
+					// Updating landmark field with the merged address text for simplicity
+					await sb.from('quote_details').update({ landmark: newSite }).eq('enquiry_id', quotes[0].id);
+				}
+
+				saveBtn.innerText = "CHANGES SAVED";
+				setTimeout(() => {
+					saveBtn.innerText = "Save All Changes";
+					saveBtn.disabled = false;
+				}, 2000);
+				
+				// Refresh workspace header to show new name
+				document.querySelector('#workspace-title-area h1').innerText = newName;
+
+			} catch (err) {
+				console.error("Update Error:", err);
+				saveBtn.innerText = "ERROR SAVING";
+				saveBtn.disabled = false;
 			}
 		}
 
@@ -1223,6 +1317,9 @@
 			document.body.style.overflow = 'auto';
 			if (window.currentProjectSub) {
 				sb.removeChannel(window.currentProjectSub);
+			}
+			if (typeof loadAdminProjects === "function") {
+				loadAdminProjects();
 			}
 		}
 		
