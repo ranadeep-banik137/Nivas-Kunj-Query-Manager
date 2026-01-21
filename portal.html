@@ -898,86 +898,228 @@
 			const workspace = document.getElementById('project-workspace');
 			workspace.classList.remove('hidden');
 			document.body.style.overflow = 'hidden';
+
 			try {
-				// 1. Fetch Project Core Data
 				const { data: proj } = await sb.from('projects').select('*').eq('id', projectId).single();
-				
-				// 1. Define the standard phase sequence
+				const { data: enqLinks } = await sb.from('enquiry_details').select('enquiry_id').eq('project_id', projectId);
+				const enqIds = enqLinks ? enqLinks.map(l => l.enquiry_id) : [];
+
+				const [rawRes, quoteRes, customerRes, allFilesRes] = await Promise.all([
+					sb.from('raw_enquiries').select('id, is_quote').in('id', enqIds),
+					sb.from('quote_details').select('*').in('enquiry_id', enqIds),
+					sb.from('customer_details').select('*').in('enquiry_id', enqIds),
+					sb.from('project_files').select('*').eq('project_id', projectId).order('created_at', { ascending: false })
+				]);
+
+				// SEPARATION LOGIC: Find the invoice for the sidebar, filter it out for the assets grid
+				const invoiceData = allFilesRes.data?.find(f => f.is_invoice === true);
+				const assetsOnly = allFilesRes.data?.filter(f => f.is_invoice !== true) || [];
+
+				let projectSite = "", projectArea = "N/A", projectType = "General Enquiry";
+				const quoteEnquiry = rawRes.data?.find(r => r.is_quote === true);
+				if (quoteEnquiry) {
+					const qDetail = quoteRes.data?.find(q => q.enquiry_id === quoteEnquiry.id);
+					if (qDetail) {
+						projectSite = [qDetail.pincode, qDetail.landmark, qDetail.city].filter(Boolean).join(', ');
+						projectArea = qDetail.area_sqft ? `${qDetail.area_sqft} Sq. Ft.` : "N/A";
+						projectType = qDetail.flat_type || "Standard Project";
+					}
+				}
+
 				const phases = ['Initiation', 'Design Concept', 'Procurement', 'Installation', 'Handover'];
-
-				// 2. Clean the DB value for comparison (removing spaces and making lowercase)
 				const dbPhase = (proj.current_phase || "").trim().toLowerCase();
-
-				// 3. Find which index we are currently at
 				const currentIdx = phases.findIndex(p => p.toLowerCase() === dbPhase);
-				
-				
-				// 4. Render the UI
-				document.getElementById('luxury-timeline').innerHTML = phases.map((phase, i) => {
-					const isCompleted = i < currentIdx;
-					const isActive = i === currentIdx;
-					
-					return `
-						<div class="relative pl-12 mb-10 last:mb-0">
-							${i !== phases.length - 1 ? `
-								<div class="absolute left-[15px] top-8 w-[2px] h-full 
-									${i < currentIdx ? 'bg-indigo-500' : 'bg-white/5'}"></div>
-							` : ''}
 
-							<div class="absolute left-0 top-0 w-8 h-8 rounded-full border-2 z-10 flex items-center justify-center transition-all duration-700 
-								${isCompleted ? 'bg-indigo-600 border-indigo-400 shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 
-								  isActive ? 'bg-white border-white shadow-[0_0_20px_rgba(255,255,255,0.3)]' : 
-								  'bg-slate-900 border-white/10'}">
-								
-								${isCompleted ? '<i data-lucide="check" class="w-4 h-4 text-white"></i>' : 
-								  `<span class="text-[10px] font-black ${isActive ? 'text-black' : 'text-slate-600'}">${i + 1}</span>`}
-							</div>
-
-							<div class="transition-all duration-500 ${isActive ? 'translate-x-2' : ''}">
-								<h4 class="text-[11px] font-black uppercase tracking-[0.2em] 
-									${isActive ? 'text-white' : isCompleted ? 'text-indigo-300' : 'text-slate-600'}">
-									${phase}
-								</h4>
-								${isActive ? `
-									<div class="flex items-center gap-2 mt-1">
-										<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-										<span class="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Active Phase</span>
+				document.getElementById('luxury-timeline').innerHTML = `
+					<div class="mb-10 px-2">
+						<h4 class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Project Roadmap</h4>
+						${phases.map((phase, i) => {
+							const isCompleted = i < currentIdx;
+							const isActive = i === currentIdx;
+							return `
+								<div class="relative pl-12 mb-10 last:mb-0">
+									${i !== phases.length - 1 ? `<div class="absolute left-[15px] top-8 w-[2px] h-full ${i < currentIdx ? 'bg-indigo-500' : 'bg-white/5'}"></div>` : ''}
+									<div class="absolute left-0 top-0 w-8 h-8 rounded-full border-2 z-10 flex items-center justify-center transition-all duration-700 
+										${isCompleted ? 'bg-indigo-600 border-indigo-400 shadow-[0_0_15px_rgba(79,70,229,0.4)]' : isActive ? 'bg-white border-white shadow-[0_0_20px_rgba(255,255,255,0.3)]' : 'bg-slate-900 border-white/10'}">
+										${isCompleted ? '<i data-lucide="check" class="w-4 h-4 text-white"></i>' : `<span class="text-[10px] font-black ${isActive ? 'text-black' : 'text-slate-600'}">${i + 1}</span>`}
 									</div>
-								` : ''}
+									<div class="transition-all duration-500 ${isActive ? 'translate-x-2' : ''}">
+										<h4 class="text-[11px] font-black uppercase tracking-[0.2em] ${isActive ? 'text-white' : isCompleted ? 'text-indigo-300' : 'text-slate-600'}">${phase}</h4>
+									</div>
+								</div>`;
+						}).join('')}
+					</div>
+
+					<div class="mb-10 p-5 bg-white/5 rounded-3xl border border-white/10 space-y-4">
+						<div class="flex justify-between items-center mb-2 px-1">
+							<h4 class="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em]">Project Overview</h4>
+							<label class="flex items-center gap-2 cursor-pointer group">
+								<span class="text-[8px] font-black text-slate-500 uppercase">Estimation Submitted</span>
+								<input id="update-eta-submitted" type="checkbox" ${proj.eta_submitted ? 'checked' : ''} class="w-4 h-4 rounded border-white/10 bg-slate-900 accent-indigo-500">
+							</label>
+						</div>
+
+						<div class="space-y-1.5">
+							<label class="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">Project Name</label>
+							<input id="update-project-name" type="text" value="${proj.project_name || ''}" class="w-full px-4 py-2 bg-slate-950 border border-white/5 rounded-xl text-[11px] font-bold text-white outline-none focus:border-indigo-500 transition-all">
+						</div>
+
+						<div class="space-y-1.5">
+							<label class="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">Project Site</label>
+							<textarea id="update-project-site" rows="2" class="w-full px-4 py-2 bg-slate-950 border border-white/5 rounded-xl text-[11px] font-bold text-white outline-none focus:border-indigo-500 transition-all">${projectSite}</textarea>
+						</div>
+
+						<div class="grid grid-cols-2 gap-3">
+							<div class="space-y-1.5">
+								<label class="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">Project Cost</label>
+								<input id="update-project-cost" type="number" step="0.01" value="${proj.project_cost || ''}" placeholder="0.00" class="w-full px-4 py-2 bg-slate-950 border border-white/5 rounded-xl text-[11px] font-bold text-white outline-none focus:border-indigo-500 transition-all">
+							</div>
+							<div class="space-y-1.5">
+								<label class="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">ETA</label>
+								<input id="update-eta" type="date" value="${proj.eta ? new Date(proj.eta).toISOString().split('T')[0] : ''}" class="w-full px-4 py-2 bg-slate-950 border border-white/5 rounded-xl text-[11px] font-bold text-white outline-none focus:border-indigo-500 transition-all">
 							</div>
 						</div>
-					`;
-				}).join('');
 
-				lucide.createIcons();
-				
-				// 2. Fetch Linked Enquiry IDs (for chat)
-				const { data: links } = await sb.from('enquiry_details').select('enquiry_id').eq('project_id', projectId);
-				activeEnquiryIds = links ? links.map(l => l.enquiry_id) : [];
+						<div class="p-4 bg-slate-950/50 rounded-2xl border border-white/5">
+							<div class="flex justify-between items-center mb-3">
+								<label class="text-[8px] font-black text-slate-500 uppercase tracking-widest">Estimation Invoice</label>
+								${window.currentUserProfile?.is_admin ? `
+									<label class="text-[8px] font-black text-indigo-400 uppercase cursor-pointer hover:text-white transition-all">
+										Upload New <input type="file" class="hidden" onchange="uploadProjectInvoice(this, '${projectId}')">
+									</label>
+								` : ''}
+							</div>
+							${invoiceData ? `
+								<a href="${invoiceData.img_url}" target="_blank" class="flex items-center gap-3 p-2 bg-white/5 rounded-lg border border-white/5 hover:bg-white/10 transition-all">
+									<i data-lucide="file-text" class="w-4 h-4 text-indigo-400"></i>
+									<span class="text-[10px] font-bold text-white uppercase truncate">View Invoice</span>
+									<i data-lucide="external-link" class="w-3 h-3 text-slate-500 ml-auto"></i>
+								</a>
+							` : `<p class="text-[9px] text-slate-600 italic">No invoice uploaded</p>`}
+						</div>
 
-				// 3. Update Header
+						<div class="grid grid-cols-2 gap-3 pt-2">
+							<div class="p-3 bg-slate-900/50 rounded-xl border border-white/5">
+								<p class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Area</p>
+								<p class="text-[10px] font-bold text-indigo-400">${projectArea}</p>
+							</div>
+							<div class="p-3 bg-slate-900/50 rounded-xl border border-white/5">
+								<p class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Type</p>
+								<p class="text-[10px] font-bold text-white truncate">${projectType}</p>
+							</div>
+						</div>
+
+						<button id="overview-save-btn" onclick="saveProjectOverview('${projectId}', ${JSON.stringify(enqIds)})" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2">
+							<i data-lucide="save" class="w-3.5 h-3.5"></i> Update Project Details
+						</button>
+					</div>
+
+					<div class="mb-6 space-y-3">
+						<h4 class="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em] px-2">Customer Contacts</h4>
+						${(customerRes.data || []).map(cust => `
+							<div class="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between group">
+								<div>
+									<p class="text-[10px] font-black text-white uppercase">${cust.customer_name || 'Unnamed'}</p>
+									<p class="text-[9px] text-slate-500 font-bold">${cust.phone_number || 'No Contact'}</p>
+								</div>
+								<div class="flex gap-2">
+									${cust.whatsapp_updates && window.currentUserProfile?.is_admin ? `
+										<a href="https://wa.me/${cust.phone_number.replace(/\D/g,'')}" target="_blank" class="w-8 h-8 flex items-center justify-center bg-emerald-500/10 text-emerald-500 rounded-xl hover:bg-emerald-500 hover:text-white transition-all">
+											<i data-lucide="message-circle" class="w-4 h-4"></i>
+										</a>` : ''}
+									<a href="mailto:${cust.email_id}" class="w-8 h-8 flex items-center justify-center bg-indigo-500/10 text-indigo-500 rounded-xl hover:bg-indigo-500 hover:text-white transition-all">
+										<i data-lucide="mail" class="w-4 h-4"></i>
+									</a>
+								</div>
+							</div>`).join('')}
+					</div>
+				`;
+
+				// Update Title
 				document.getElementById('workspace-title-area').innerHTML = `
 					<h1 class="text-4xl font-black text-white tracking-tighter uppercase">${proj.project_name}</h1>
 					<p class="text-indigo-400 font-bold text-[10px] uppercase tracking-widest mt-1">${proj.client_email}</p>
 				`;
 
-				// 4. Fetch Files directly (No Joins)
-				const { data: pFiles, error: fError } = await sb
-					.from('project_files')
-					.select('*')
-					.eq('project_id', projectId)
-					.order('created_at', { ascending: false });
-
-				if (fError) console.error("File fetch error:", fError);
-				
-				// 5. Render
-				renderWorkspaceAssets(pFiles); 
+				// RENDER FILTERED ASSETS (Excludes the Invoice)
+				renderWorkspaceAssets(assetsOnly);
 				await loadWorkspaceChat(activeProjectId);
-				//renderWorkspaceChat();
+				document.getElementById('overview-save-btn').onclick = () => saveProjectOverview(projectId, enqIds);
 				lucide.createIcons();
 
 			} catch (err) {
 				console.error("Workspace Error:", err);
+			}
+		}
+
+		async function saveProjectOverview(projectId, enqIds) {
+			const saveBtn = document.getElementById('overview-save-btn');
+			const updateData = {
+				project_name: document.getElementById('update-project-name').value,
+				project_cost: document.getElementById('update-project-cost').value,
+				eta: document.getElementById('update-eta').value || null,
+				eta_submitted: document.getElementById('update-eta-submitted').checked
+			};
+
+			saveBtn.innerText = "UPDATING...";
+			saveBtn.disabled = true;
+
+			try {
+				// 1. Update Project Table
+				const { error: pError } = await sb.from('projects').update(updateData).eq('id', projectId);
+				if (pError) throw pError;
+
+				// 2. Update Site Details in quote_details
+				const newSite = document.getElementById('update-project-site').value;
+				const { data: quotes } = await sb.from('raw_enquiries').select('id').eq('is_quote', true).in('id', enqIds);
+				
+				if (quotes && quotes.length > 0) {
+					await sb.from('quote_details').update({ landmark: newSite }).eq('enquiry_id', quotes[0].id);
+				}
+
+				saveBtn.innerText = "CHANGES SAVED";
+				document.querySelector('#workspace-title-area h1').innerText = updateData.project_name;
+
+				setTimeout(() => {
+					saveBtn.innerHTML = `<i data-lucide="save" class="w-3.5 h-3.5"></i> Update Project Details`;
+					saveBtn.disabled = false;
+					lucide.createIcons();
+				}, 2000);
+
+			} catch (err) {
+				console.error("Update Error:", err);
+				saveBtn.innerText = "ERROR SAVING";
+				saveBtn.disabled = false;
+			}
+		}
+
+		async function uploadProjectInvoice(input, projectId) {
+			if (!input.files || input.files.length === 0) return;
+			const file = input.files[0];
+			const fileExt = file.name.split('.').pop();
+			const filePath = `invoices/${projectId}/${Date.now()}.${fileExt}`;
+
+			try {
+				// 1. Upload to Storage
+				const { error: uploadError } = await sb.storage.from('portal-files').upload(filePath, file);
+				if (uploadError) throw uploadError;
+
+				// 2. Get URL
+				const { data: { publicUrl } } = sb.storage.from('portal-files').getPublicUrl(filePath);
+
+				// 3. Insert into project_files
+				await sb.from('project_files').insert({
+					project_id: projectId,
+					uploaded_by: window.userSession?.id,
+					img_url: publicUrl,
+					is_invoice: true
+				});
+
+				alert("Invoice uploaded successfully");
+				openProjectWorkspace(projectId); // Refresh to show the link
+			} catch (err) {
+				console.error("Invoice Upload Error:", err);
+				alert("Failed to upload invoice");
 			}
 		}
 
@@ -1223,6 +1365,9 @@
 			document.body.style.overflow = 'auto';
 			if (window.currentProjectSub) {
 				sb.removeChannel(window.currentProjectSub);
+			}
+			if (typeof loadAdminProjects === "function") {
+				loadAdminProjects();
 			}
 		}
 		
