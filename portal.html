@@ -601,10 +601,10 @@
 					</div>
 				`}
 
-				${(!isRegistered && !details?.is_project) ? `
+				${(!isRegistered) ? `
 				<div class="mt-3 px-4 py-3 bg-white/5 border border-white/5 rounded-xl flex items-center justify-between">
 					<p class="text-[9px] text-slate-400 font-medium">Client hasn't joined the portal yet.</p>
-					<button onclick="sendRegistrationInvite('${email}', '${customer?.customer_name}')" 
+					<button onclick="sendRegistrationInvite('${email}', '${customer?.customer_name}', '${leadId}')" 
 						class="text-[9px] font-black text-indigo-400 uppercase tracking-widest hover:text-white transition">
 						Send Invite &rarr;
 					</button>
@@ -932,7 +932,7 @@
 
 				document.getElementById('luxury-timeline').innerHTML = `
 					<div class="mb-10 px-2">
-						<h4 class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Project Roadmap</h4>
+						<h4 class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Project Progress</h4>
 						${phases.map((phase, i) => {
 							const isCompleted = i < currentIdx;
 							const isActive = i === currentIdx;
@@ -1433,12 +1433,44 @@
 			btn.innerText = newState ? "Deselect All" : "Select All";
 		}
 
-        function sendRegistrationInvite(email, name) {
-			const regUrl = `${window.location.origin}/index.html`; // Redirect back to index for sign up
-			const subject = encodeURIComponent("Nivas Kunj - Dashboard Invitation");
-			const body = encodeURIComponent(`Hi ${name},\n\nPlease complete your setup to view your project designs here: ${regUrl}`);
-			window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
-			alert("Invitation ready for: " + email);
+        async function sendRegistrationInvite(email, customerName, leadId) {
+			try {
+				// 1. Create the registration link pointing to your index.html
+				// We add 'email' and 'mode' as URL parameters to make it easy for the client
+				const registrationLink = `${window.location.origin}/index.html?email=${encodeURIComponent(email)}&mode=register`;
+
+				// 2. The message content as per your requirement
+				const invitationMessage = `Dear ${customerName}, 
+
+		Welcome to Nivas Kunj! We are happy to get you onboarded to our project. 
+
+		Please register yourself using the link below to get project live updates, tracking, and all related documents:
+
+		${registrationLink}
+
+		Note: Please use this email (${email}) during registration to ensure your project data is synced correctly.`;
+
+				// 3. Log the invite in the system history
+				await sb.from('enquiry_comments').insert({
+					enquiry_id: leadId,
+					org_comments: `SYSTEM: Invitation link generated and sent to ${email}. Link : ${registrationLink}`,
+					created_at: new Date()
+				});
+
+				// 4. Open the Admin's default email app (Gmail/Outlook) with everything pre-filled
+				const subject = encodeURIComponent("Welcome to Nivas Kunj | Project Onboarding");
+				const body = encodeURIComponent(invitationMessage);
+				window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+
+				alert("Invitation prepared! Please send the email from your mail client.");
+				
+				// Refresh UI
+				if (typeof manageLead === 'function') manageLead(leadId);
+
+			} catch (err) {
+				console.error("Invite Error:", err);
+				alert("Failed to generate invite: " + err.message);
+			}
 		}
 
 		function closeModal() { document.getElementById('lead-modal').classList.add('hidden'); }

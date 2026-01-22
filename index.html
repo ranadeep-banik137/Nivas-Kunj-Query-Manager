@@ -250,6 +250,26 @@
 			// 3. Existing logic for password recovery
 			if (window.location.hash.includes("type=recovery")) toggleMode('update');
 		};
+		
+		// Auto-fill logic for Invited Clients
+		window.addEventListener('DOMContentLoaded', () => {
+			const params = new URLSearchParams(window.location.search);
+			const emailFromUrl = params.get('email');
+			const modeFromUrl = params.get('mode');
+
+			// 1. Pre-fill the email field if it exists in URL
+			if (emailFromUrl && document.getElementById('email')) {
+				document.getElementById('email').value = emailFromUrl;
+			}
+
+			// 2. Automatically switch to Register Mode if the link says so
+			if (modeFromUrl === 'register') {
+				// This targets your existing toggleMode function
+				if (typeof toggleMode === 'function') {
+					toggleMode('register');
+				}
+			}
+		});
     </script>
 </body>
 </html>
