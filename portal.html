@@ -1685,29 +1685,48 @@
 		async function refreshProjectFinancials(projectId) {
 			if (!projectId) return;
 
-			// 1. Fetch Project Timeline & Payments
-			const [projRes, payRes] = await Promise.all([
-				sb.from('projects').select('created_at, eta').eq('id', projectId).single(),
-				sb.from('payments').select('payment_amt, created_at').eq('project_id', projectId)
-			]);
+			// 1. Fetch Project Details (Cost, ETA, Dates)
+			const { data: project, error: pErr } = await sb.from('projects')
+				.select('created_at, eta, project_cost, eta_submitted')
+				.eq('id', projectId).single();
 
-			if (!projRes.data) return;
+			// 2. Fetch All Payments for this project
+			const { data: payments, error: payErr } = await sb.from('payments')
+				.select('payment_amt, created_at, installment_num')
+				.eq('project_id', projectId).order('installment_num', { ascending: true });
 
-			const startDate = new Date(projRes.data.created_at);
-			const endDate = new Date(projRes.data.eta);
-			const payments = payRes.data || [];
+			if (!project) return;
 
-			// 2. Generate Monthly Labels (X-Axis) and Data (Y-Axis)
+			// --- FINANCIAL CALCULATIONS ---
+			const summaryLabels = document.getElementById('financial-summary-labels');
+			
+			// Condition: Only show Due Amount if project_cost is defined AND eta_submitted is true
+			if (project.project_cost && project.eta_submitted === true) {
+				summaryLabels.classList.remove('hidden');
+				
+				const totalPaid = (payments || []).reduce((sum, p) => sum + (p.payment_amt || 0), 0);
+				const amountDue = Math.max(0, project.project_cost - totalPaid);
+
+				document.getElementById('label-total-paid').innerText = `₹${totalPaid.toLocaleString('en-IN')}`;
+				document.getElementById('label-amount-due').innerText = `₹${amountDue.toLocaleString('en-IN')}`;
+			} else {
+				summaryLabels.classList.add('hidden');
+			}
+
+			// --- CHART LOGIC (Monthly Timeline) ---
+			const startDate = new Date(project.created_at);
+			const endDate = new Date(project.eta || project.created_at); // Fallback if ETA missing
+			
 			const labels = [];
 			const monthlyData = [];
 			let current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
 
+			// Generate month-by-month X-axis from start to eta
 			while (current <= endDate) {
 				const monthLabel = current.toLocaleString('default', { month: 'short', year: '2-digit' });
 				labels.push(monthLabel);
 				
-				// Sum payments that happened in this month
-				const monthTotal = payments
+				const monthTotal = (payments || [])
 					.filter(p => {
 						const pDate = new Date(p.created_at);
 						return pDate.getMonth() === current.getMonth() && pDate.getFullYear() === current.getFullYear();
@@ -1718,26 +1737,27 @@
 				current.setMonth(current.getMonth() + 1);
 			}
 
-			// 3. Draw the Chart
-			const canvas = document.getElementById('paymentChart');
-			if (!canvas) return;
-			const ctx = canvas.getContext('2d');
-			
-			if (paymentChartInstance) paymentChartInstance.destroy();
+			renderFinancialChart(labels, monthlyData);
+			updateRoadmap(startDate, endDate);
+		}
 
-			paymentChartInstance = new Chart(ctx, {
+		function renderFinancialChart(labels, data) {
+			const ctx = document.getElementById('paymentChart').getContext('2d');
+			if (window.paymentChartInstance) window.paymentChartInstance.destroy();
+
+			window.paymentChartInstance = new Chart(ctx, {
 				type: 'line',
 				data: {
 					labels: labels,
 					datasets: [{
-						data: monthlyData,
+						label: 'Paid Amount',
+						data: data,
 						borderColor: '#818cf8',
 						backgroundColor: 'rgba(129, 140, 248, 0.1)',
-						borderWidth: 3,
-						tension: 0.4,
 						fill: true,
-						pointBackgroundColor: '#fff',
-						pointRadius: 4
+						tension: 0.4,
+						pointRadius: 4,
+						pointBackgroundColor: '#fff'
 					}]
 				},
 				options: {
@@ -1750,9 +1770,6 @@
 					}
 				}
 			});
-
-			// 4. Update Roadmap Progress
-			updateRoadmap(startDate, endDate);
 		}
 
 		function updateRoadmap(start, end) {
@@ -1841,6 +1858,16 @@
 							<div>
 								<p class="text-[8px] font-black text-indigo-400 uppercase tracking-[0.4em] mb-1">Financial Pipeline</p>
 								<h3 class="font-title font-black text-xl text-white tracking-tighter uppercase">Payment Status</h3>
+							</div>
+							<div id="financial-summary-labels" class="flex gap-6 hidden">
+								<div class="text-right">
+									<p class="text-[7px] text-slate-500 uppercase font-bold tracking-widest">Total Paid</p>
+									<p id="label-total-paid" class="text-xs font-black text-green-400">₹0</p>
+								</div>
+								<div class="text-right">
+									<p class="text-[7px] text-slate-500 uppercase font-bold tracking-widest">Amount Due</p>
+									<p id="label-amount-due" class="text-xs font-black text-rose-400">₹0</p>
+								</div>
 							</div>
 							<button onclick="openPaymentModal()" class="bg-indigo-600 text-white px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500 transition shadow-lg shadow-indigo-500/20 active:scale-95">
 								Record Payment
