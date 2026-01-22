@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@400;500;600;700&display=swap');
         
@@ -1045,6 +1046,7 @@
 				renderWorkspaceAssets(assetsOnly);
 				await loadWorkspaceChat(activeProjectId);
 				document.getElementById('overview-save-btn').onclick = () => saveProjectOverview(projectId, enqIds);
+				setTimeout(() => refreshProjectFinancials(projectId), 200);
 				lucide.createIcons();
 
 			} catch (err) {
@@ -1678,6 +1680,103 @@
 			}
 		}
 		
+		let paymentChartInstance = null;
+
+		async function refreshProjectFinancials(projectId) {
+			if (!projectId) return;
+
+			// 1. Fetch Project Timeline & Payments
+			const [projRes, payRes] = await Promise.all([
+				sb.from('projects').select('created_at, eta').eq('id', projectId).single(),
+				sb.from('payments').select('payment_amt, created_at').eq('project_id', projectId)
+			]);
+
+			if (!projRes.data) return;
+
+			const startDate = new Date(projRes.data.created_at);
+			const endDate = new Date(projRes.data.eta);
+			const payments = payRes.data || [];
+
+			// 2. Generate Monthly Labels (X-Axis) and Data (Y-Axis)
+			const labels = [];
+			const monthlyData = [];
+			let current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+
+			while (current <= endDate) {
+				const monthLabel = current.toLocaleString('default', { month: 'short', year: '2-digit' });
+				labels.push(monthLabel);
+				
+				// Sum payments that happened in this month
+				const monthTotal = payments
+					.filter(p => {
+						const pDate = new Date(p.created_at);
+						return pDate.getMonth() === current.getMonth() && pDate.getFullYear() === current.getFullYear();
+					})
+					.reduce((sum, p) => sum + (p.payment_amt || 0), 0);
+				
+				monthlyData.push(monthTotal);
+				current.setMonth(current.getMonth() + 1);
+			}
+
+			// 3. Draw the Chart
+			const canvas = document.getElementById('paymentChart');
+			if (!canvas) return;
+			const ctx = canvas.getContext('2d');
+			
+			if (paymentChartInstance) paymentChartInstance.destroy();
+
+			paymentChartInstance = new Chart(ctx, {
+				type: 'line',
+				data: {
+					labels: labels,
+					datasets: [{
+						data: monthlyData,
+						borderColor: '#818cf8',
+						backgroundColor: 'rgba(129, 140, 248, 0.1)',
+						borderWidth: 3,
+						tension: 0.4,
+						fill: true,
+						pointBackgroundColor: '#fff',
+						pointRadius: 4
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: { legend: { display: false } },
+					scales: {
+						y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', font: { size: 9 } } },
+						x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 9 } } }
+					}
+				}
+			});
+
+			// 4. Update Roadmap Progress
+			updateRoadmap(startDate, endDate);
+		}
+
+		function updateRoadmap(start, end) {
+			const now = new Date();
+			const progress = Math.min(Math.max(((now - start) / (end - start)) * 100, 0), 100);
+			document.getElementById('project-eta-fill').style.width = `${progress}%`;
+			document.getElementById('label-start-date').innerText = start.toLocaleDateString();
+			document.getElementById('label-eta-date').innerText = end.toLocaleDateString();
+			const days = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+			document.getElementById('eta-days-count').innerText = days > 0 ? `${days} DAYS LEFT` : "COMPLETED";
+		}
+
+		function openPaymentModal() {
+			const amt = prompt("Amount (₹):");
+			const inst = prompt("Installment #:");
+			if (amt && inst) {
+				sb.from('payments').insert({
+					project_id: window.currentProjectId,
+					payment_amt: parseFloat(amt),
+					installment_num: parseInt(inst)
+				}).then(() => refreshProjectFinancials(window.currentProjectId));
+			}
+		}
+		
     </script>
 	
 	<div id="project-workspace" class="fixed inset-0 z-[60] bg-slate-950/95 backdrop-blur-xl hidden overflow-y-auto">
@@ -1736,6 +1835,43 @@
 							</div>
 						</div>
 					</div>
+					
+					<div class="glass-panel rounded-[32px] border border-white/10 mt-6 p-8 flex flex-col fade-in">
+						<div class="flex justify-between items-start mb-6">
+							<div>
+								<p class="text-[8px] font-black text-indigo-400 uppercase tracking-[0.4em] mb-1">Financial Pipeline</p>
+								<h3 class="font-title font-black text-xl text-white tracking-tighter uppercase">Payment Status</h3>
+							</div>
+							<button onclick="openPaymentModal()" class="bg-indigo-600 text-white px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500 transition shadow-lg shadow-indigo-500/20 active:scale-95">
+								Record Payment
+							</button>
+						</div>
+
+						<div class="h-[180px] w-full mb-6">
+							<canvas id="paymentChart"></canvas>
+						</div>
+
+						<div class="pt-6 border-t border-white/5">
+							<div class="flex justify-between items-center mb-2">
+								<span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">Roadmap Completion</span>
+								<span id="eta-days-count" class="text-[9px] font-black text-indigo-400">SYNCING...</span>
+							</div>
+							<div class="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
+								<div id="project-eta-fill" class="bg-indigo-500 h-full transition-all duration-1000" style="width: 0%"></div>
+							</div>
+							<div class="flex justify-between mt-3 text-[10px] font-black text-white">
+								<div class="text-left">
+									<p class="text-[7px] text-slate-500 uppercase font-bold tracking-widest text-left">Start Date</p>
+									<p id="label-start-date">--</p>
+								</div>
+								<div class="text-right">
+									<p class="text-[7px] text-slate-500 uppercase font-bold tracking-widest text-right">Target ETA</p>
+									<p id="label-eta-date">--</p>
+								</div>
+							</div>
+						</div>
+					</div>
+					
 				</div>
 			</div>
 		</div>
