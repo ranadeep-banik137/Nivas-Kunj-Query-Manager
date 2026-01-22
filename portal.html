@@ -954,9 +954,14 @@
 					<div class="mb-10 p-5 bg-white/5 rounded-3xl border border-white/10 space-y-4">
 						<div class="flex justify-between items-center mb-2 px-1">
 							<h4 class="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em]">Project Overview</h4>
-							<label class="flex items-center gap-2 cursor-pointer group">
+							<label class="flex items-center gap-2 ${window.currentUserProfile?.is_admin ? 'cursor-pointer' : 'cursor-not-allowed'} group">
 								<span class="text-[8px] font-black text-slate-500 uppercase">Estimation Submitted</span>
-								<input id="update-eta-submitted" type="checkbox" ${proj.eta_submitted ? 'checked' : ''} class="w-4 h-4 rounded border-white/10 bg-slate-900 accent-indigo-500">
+								<input id="update-eta-submitted" 
+									   type="checkbox" 
+									   ${proj.eta_submitted ? 'checked' : ''} 
+									   ${!window.currentUserProfile?.is_admin ? 'disabled' : ''}
+									   onchange="handleEtaToggle(this, '${proj.id}')"
+									   class="w-4 h-4 rounded border-white/10 bg-slate-900 accent-indigo-500 ${!window.currentUserProfile?.is_admin ? 'opacity-50' : 'cursor-pointer'}">
 							</label>
 						</div>
 
@@ -973,11 +978,11 @@
 						<div class="grid grid-cols-2 gap-3">
 							<div class="space-y-1.5">
 								<label class="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">Project Cost</label>
-								<input id="update-project-cost" type="number" step="0.01" value="${proj.project_cost || ''}" placeholder="0.00" class="w-full px-4 py-2 bg-slate-950 border border-white/5 rounded-xl text-[11px] font-bold text-white outline-none focus:border-indigo-500 transition-all">
+								<input id="update-project-cost" type="number" step="0.01" value="${proj.project_cost || ''}" placeholder="0.00" ${!proj.eta_submitted ? 'disabled' : ''} class="w-full px-4 py-2 bg-slate-950 border border-white/5 rounded-xl text-[11px] font-bold text-white outline-none focus:border-indigo-500 transition-all">
 							</div>
 							<div class="space-y-1.5">
 								<label class="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">ETA</label>
-								<input id="update-eta" type="date" value="${proj.eta ? new Date(proj.eta).toISOString().split('T')[0] : ''}" class="w-full px-4 py-2 bg-slate-950 border border-white/5 rounded-xl text-[11px] font-bold text-white outline-none focus:border-indigo-500 transition-all">
+								<input id="update-eta" type="date" value="${proj.eta ? new Date(proj.eta).toISOString().split('T')[0] : ''}" ${!window.currentUserProfile?.is_admin ? 'disabled' : ''} class="w-full px-4 py-2 bg-slate-950 border border-white/5 rounded-xl text-[11px] font-bold text-white outline-none focus:border-indigo-500 transition-all">
 							</div>
 						</div>
 
@@ -1792,6 +1797,41 @@
 					installment_num: parseInt(inst)
 				}).then(() => refreshProjectFinancials(window.currentProjectId));
 			}
+		}
+		
+		async function handleEtaToggle(el, projectId) {
+			// Only admins can trigger this
+			if (!window.currentUserProfile?.is_admin) return;
+
+			const isChecked = el.checked;
+			
+			// Update Database
+			const { error } = await sb
+				.from('projects')
+				.update({ eta_submitted: isChecked })
+				.eq('id', projectId);
+
+			if (error) {
+				alert("Error: " + error.message);
+				el.checked = !isChecked; // Revert UI on error
+				return;
+			}
+
+			// --- INSTANT UI UPDATE ---
+			const costInput = document.getElementById('update-project-cost');
+			if (costInput) {
+				// If checked, ENABLE the cost input. If unchecked, DISABLE it.
+				costInput.disabled = !isChecked; 
+				
+				if (!isChecked) {
+					costInput.classList.add('opacity-50', 'cursor-not-allowed');
+				} else {
+					costInput.classList.remove('opacity-50', 'cursor-not-allowed');
+				}
+			}
+
+			// Refresh the financial labels (Amount Due etc.)
+			refreshProjectFinancials(projectId);
 		}
 		
     </script>
