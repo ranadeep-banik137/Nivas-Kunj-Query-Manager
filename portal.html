@@ -8,6 +8,8 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+	<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@400;500;600;700&display=swap');
         
@@ -269,7 +271,7 @@
         const S_URL = 'https://wbhcvcsdpdandaxidnlg.supabase.co';
         const S_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndiaGN2Y3NkcGRhbmRheGlkbmxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NjMwMjksImV4cCI6MjA4MTUzOTAyOX0.n8R1OpFxilWbDfteODc-lyVF_qvntyRnJNVM3g9xCWs'; 
         const sb = supabase.createClient(S_URL, S_KEY);
-		
+		Chart.register(ChartZoom);
 		async function initializeAuth() {
 			const loader = document.getElementById('loader');
 			const { data: { user }, error: authError } = await sb.auth.getUser();
@@ -1695,62 +1697,117 @@
 		async function refreshProjectFinancials(projectId) {
 			if (!projectId) return;
 
-			// 1. Fetch Project Details (Cost, ETA, Dates)
-			const { data: project, error: pErr } = await sb.from('projects')
+			// 1. Fetch Data
+			const { data: project } = await sb.from('projects')
 				.select('created_at, eta, project_cost, eta_submitted')
 				.eq('id', projectId).single();
 
-			// 2. Fetch All Payments for this project
-			const { data: payments, error: payErr } = await sb.from('payments')
-				.select('payment_amt, created_at, installment_num, payment_status')
-				.eq('project_id', projectId).order('installment_num', { ascending: true });
+			const { data: payments } = await sb.from('payments')
+				.select('payment_amt, created_at, payment_status')
+				.eq('project_id', projectId)
+				.order('created_at', { ascending: true });
 
 			if (!project) return;
 
-			// --- FINANCIAL CALCULATIONS ---
-			const summaryLabels = document.getElementById('financial-summary-labels');
-			
-			// Condition: Only show Due Amount if project_cost is defined AND eta_submitted is true
-			if (project.project_cost && project.eta_submitted === true) {
-				summaryLabels.classList.remove('hidden');
-				
-				const totalPaid = (payments || []).filter(p => p.payment_status === 3).reduce((sum, p) => sum + (p.payment_amt || 0), 0);
-				const amountDue = Math.max(0, project.project_cost - totalPaid);
-
-				document.getElementById('label-total-paid').innerText = `₹${totalPaid.toLocaleString('en-IN')}`;
-				document.getElementById('label-amount-due').innerText = `₹${amountDue.toLocaleString('en-IN')}`;
-			} else {
-				summaryLabels.classList.add('hidden');
-			}
-
-			// --- CHART LOGIC (Monthly Timeline) ---
 			const startDate = new Date(project.created_at);
 			const endDate = new Date(project.eta || project.created_at); // Fallback if ETA missing
 			
-			const labels = [];
-			const monthlyData = [];
-			let current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+			// 2. Update Labels (Confirmed Only)
+			const confirmed = (payments || []).filter(p => p.payment_status === 3);
+			const totalPaid = confirmed.reduce((sum, p) => sum + (p.payment_amt || 0), 0);
+			const amountDue = Math.max(0, project.project_cost - totalPaid);
 
-			// Generate month-by-month X-axis from start to eta
-			while (current <= endDate) {
-				const monthLabel = current.toLocaleString('default', { month: 'short', year: '2-digit' });
-				labels.push(monthLabel);
-				
-				const monthTotal = (payments || [])
-					.filter(p => {
-						const pDate = new Date(p.created_at);
-						return pDate.getMonth() === current.getMonth() && pDate.getFullYear() === current.getFullYear() && p.payment_status === 3;
-					})
-					.reduce((sum, p) => sum + (p.payment_amt || 0), 0);
-				
-				monthlyData.push(monthTotal);
-				current.setMonth(current.getMonth() + 1);
+			const summaryLabels = document.getElementById('financial-summary-labels');
+			if (project.project_cost && project.eta_submitted) {
+				summaryLabels.classList.remove('hidden');
+				document.getElementById('label-total-paid').innerText = `₹${totalPaid.toLocaleString('en-IN')}`;
+				document.getElementById('label-amount-due').innerText = `₹${amountDue.toLocaleString('en-IN')}`;
 			}
 
-			renderFinancialChart(labels, monthlyData);
+			// 3. Prepare Time-Series Data Points
+			let runningTotal = 0;
+			const chartPoints = [];
+			
+			// Start point: Project Creation
+			chartPoints.push({ x: new Date(project.created_at).getTime(), y: 0 });
+
+			// Payment points: Each confirmed payment creates a "step"
+			confirmed.forEach(p => {
+				runningTotal += parseFloat(p.payment_amt);
+				chartPoints.push({ x: new Date(p.created_at).getTime(), y: runningTotal });
+			});
+
+			// End point: Current time (keeps the line flat to today)
+			chartPoints.push({ x: Date.now(), y: runningTotal });
+
+			// 4. Render Graph
+			const ctx = document.getElementById('paymentChart').getContext('2d');
+			if (paymentChartInstance) paymentChartInstance.destroy();
+
+			paymentChartInstance = new Chart(ctx, {
+				type: 'line',
+				data: {
+					datasets: [{
+						data: chartPoints,
+						borderColor: '#6366f1',
+						backgroundColor: 'rgba(99, 102, 241, 0.1)',
+						fill: true,
+						stepped: true, // Creates the vertical rise at the exact moment of payment
+						borderWidth: 2,
+						pointRadius: 3,
+						pointBackgroundColor: '#6366f1',
+						tension: 0
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					scales: {
+						x: {
+							type: 'time', // Requires chartjs-adapter-date-fns
+							time: {
+								unit: 'day',
+								displayFormats: { day: 'MMM d' }
+							},
+							grid: { display: false },
+							ticks: { color: '#64748b', font: { size: 9, weight: '800' } }
+						},
+						y: {
+							beginAtZero: true,
+							max: project.project_cost,
+							grid: { color: 'rgba(255,255,255,0.05)' },
+							ticks: {
+								color: '#64748b',
+								font: { size: 9, weight: '800' },
+								callback: (value) => '₹' + value.toLocaleString()
+							}
+						}
+					},
+					plugins: {
+						legend: { display: false },
+						zoom: {
+							zoom: {
+								wheel: { enabled: true }, // Zoom with mouse wheel
+								pinch: { enabled: true }, // Zoom with fingers on mobile
+								mode: 'x'
+							},
+							pan: {
+								enabled: true,
+								mode: 'x'
+							}
+						},
+						tooltip: {
+							callbacks: {
+								title: (items) => new Date(items[0].parsed.x).toLocaleDateString(),
+								label: (item) => ` Total Paid: ₹${item.parsed.y.toLocaleString()}`
+							}
+						}
+					}
+				}
+			});
 			updateRoadmap(startDate, endDate);
 		}
-
+		
 		function renderFinancialChart(labels, data) {
 			const ctx = document.getElementById('paymentChart').getContext('2d');
 			if (window.paymentChartInstance) window.paymentChartInstance.destroy();
