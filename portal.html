@@ -1052,6 +1052,11 @@
 				await loadWorkspaceChat(activeProjectId);
 				document.getElementById('overview-save-btn').onclick = () => saveProjectOverview(projectId, enqIds);
 				setTimeout(() => refreshProjectFinancials(projectId), 200);
+				const recordBtn = document.getElementById('global-record-payment-btn');
+				if (recordBtn) {
+					// We attach the specific project ID to the button's click event right now
+					recordBtn.onclick = () => openPaymentModal(projectId); 
+				}
 				lucide.createIcons();
 
 			} catch (err) {
@@ -1787,15 +1792,104 @@
 			document.getElementById('eta-days-count').innerText = days > 0 ? `${days} DAYS LEFT` : "COMPLETED";
 		}
 
-		function openPaymentModal() {
-			const amt = prompt("Amount (₹):");
-			const inst = prompt("Installment #:");
-			if (amt && inst) {
-				sb.from('payments').insert({
-					project_id: window.currentProjectId,
-					payment_amt: parseFloat(amt),
-					installment_num: parseInt(inst)
-				}).then(() => refreshProjectFinancials(window.currentProjectId));
+		async function openPaymentModal(projectId) {
+			const modal = document.getElementById('payment-modal');
+			document.getElementById('modal-project-id').innerText = `Project ID: ${projectId}`;
+			modal.dataset.projectId = projectId; // Store for the 'Submit' action
+			modal.classList.remove('hidden');
+
+			const isAdmin = window.currentUserProfile?.is_admin;
+			const adminSection = document.getElementById('admin-payment-section');
+			
+			// Fetch History & Statuses
+			const [statusRes, payRes] = await Promise.all([
+				sb.from('payment_status').select('*'),
+				sb.from('payments').select('*').eq('project_id', projectId).order('installment_num', { ascending: true })
+			]);
+
+			const statuses = statusRes.data || [];
+			const tableBody = document.getElementById('payment-history-rows');
+
+			tableBody.innerHTML = payRes.data.map(p => {
+				const s = statuses.find(st => st.id === p.payment_status);
+				const isConfirmed = p.payment_status === 3; // Rule: Status 3 is Confirmed
+				
+				return `
+					<tr class="border-b border-white/[0.02]">
+						<td class="py-4 px-2">${p.installment_num}</td>
+						<td class="py-4">${p.id.substring(0,8)}...</td>
+						<td class="py-4">
+							${(isAdmin && !isConfirmed) ? 
+								`<input type="date" value="${p.next_payment_date?.split('T')[0]}" 
+									   onchange="updatePaymentDate('${p.id}', this.value)" class="bg-transparent text-white border-none p-0 focus:ring-0">` : 
+								new Date(p.created_at).toLocaleDateString()
+							}
+						</td>
+						<td class="py-4 font-bold text-white">₹${p.payment_amt.toLocaleString()}</td>
+						<td class="py-4 text-[8px] font-black uppercase tracking-widest ${isConfirmed ? 'text-emerald-400' : 'text-amber-400'}">
+							${s?.status || 'Pending'}
+						</td>
+						<td class="py-4 text-right">
+							${(!isAdmin && p.payment_status === 1) ? `<button class="...">Pay Now</button>` : `<i data-lucide="check" class="w-4 h-4 inline text-slate-600"></i>`}
+						</td>
+					</tr>
+				`;
+			}).join('');
+
+			isAdmin ? adminSection.classList.remove('hidden') : adminSection.classList.add('hidden');
+			lucide.createIcons();
+		}
+		
+		async function updatePaymentDate(paymentId, newDate) {
+			const { error } = await sb.from('payments')
+				.update({ next_payment_date: newDate })
+				.eq('id', paymentId);
+				
+			if (error) {
+				alert("Update failed: " + error.message);
+			} else {
+				// Optional: show a small success toast
+				console.log("Date updated successfully");
+			}
+		}
+		
+		async function createNewPaymentEntry() {
+			const modal = document.getElementById('payment-modal');
+			const pId = modal.dataset.projectId; // Retrieving the ID we stored when opening
+			const date = document.getElementById('new-pay-date').value;
+			const amt = document.getElementById('new-pay-amt').value;
+
+			if (!pId || !date || !amt) return alert("Please fill all fields");
+
+			// --- ADDITIONAL CHECK: REMAINING AMOUNT VALIDATION ---
+			const remainingText = document.getElementById('label-amount-due').innerText;
+			// Remove Currency symbol and commas to get the pure number
+			const remainingAmt = parseFloat(remainingText.replace(/[^\d.]/g, ''));
+			const inputAmt = parseFloat(amt);
+
+			if (inputAmt > remainingAmt) {
+				return alert(`Validation Error: The requested amount (₹${inputAmt.toLocaleString('en-IN')}) exceeds the remaining balance (₹${remainingAmt.toLocaleString('en-IN')}).`);
+			}
+
+			// Get current installment count to auto-increment Sl No.
+			const { count } = await sb.from('payments')
+				.select('*', { count: 'exact', head: true })
+				.eq('project_id', pId);
+
+			const { error } = await sb.from('payments').insert({
+				project_id: pId,
+				payment_amt: parseFloat(amt),
+				next_payment_date: date,
+				payment_status: 1, // Default: Pending
+				installment_num: (count || 0) + 1
+			});
+
+			if (!error) {
+				openPaymentModal(pId); // Refresh the table
+				document.getElementById('new-pay-amt').value = '';
+				document.getElementById('new-pay-date').value = '';
+			} else {
+				alert("Error creating entry: " + error.message);
 			}
 		}
 		
@@ -1909,7 +2003,8 @@
 									<p id="label-amount-due" class="text-xs font-black text-rose-400">₹0</p>
 								</div>
 							</div>
-							<button onclick="openPaymentModal()" class="bg-indigo-600 text-white px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500 transition shadow-lg shadow-indigo-500/20 active:scale-95">
+							<button id="global-record-payment-btn" 
+									class="bg-indigo-600 text-white px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500 transition shadow-lg shadow-indigo-500/20 active:scale-95">
 								Record Payment
 							</button>
 						</div>
@@ -1943,6 +2038,54 @@
 			</div>
 		</div>
 	</div>
-	
+	<div id="payment-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-xl z-[600] hidden flex items-center justify-center p-4">
+		<div class="bg-slate-900 w-full max-w-4xl rounded-[32px] border border-white/10 shadow-2xl flex flex-col overflow-hidden animate-slide-up">
+			<div class="p-6 border-b border-white/5 flex justify-between items-center">
+				<div>
+					<h3 class="text-xl font-black text-white tracking-tighter uppercase">Payment Workspace</h3>
+					<p id="modal-project-id" class="text-slate-500 text-[8px] font-black uppercase tracking-[0.2em] mt-1">Project ID: --</p>
+				</div>
+				<button onclick="document.getElementById('payment-modal').classList.add('hidden')" class="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-red-500/20 text-slate-400 rounded-xl transition">
+					<i data-lucide="x" class="w-5 h-5"></i>
+				</button>
+			</div>
+
+			<div class="p-8 overflow-y-auto max-h-[70vh]">
+				<div class="mb-8">
+					<table class="w-full text-left">
+						<thead>
+							<tr class="text-[9px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5">
+								<th class="pb-4 px-2">SL</th>
+								<th class="pb-4">Payment ID</th>
+								<th class="pb-4">Request Date</th>
+								<th class="pb-4">Amount</th>
+								<th class="pb-4">Status</th>
+								<th class="pb-4 text-right">Action</th>
+							</tr>
+						</thead>
+						<tbody id="payment-history-rows" class="text-[10px] text-white">
+							</tbody>
+					</table>
+				</div>
+
+				<div id="admin-payment-section" class="pt-8 border-t border-white/5 hidden">
+					<h4 class="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-4">Request Next Payment</h4>
+					<div class="grid grid-cols-2 gap-4">
+						<div class="space-y-1.5">
+							<label class="text-[8px] font-black text-slate-500 uppercase ml-1">Next Payment Date</label>
+							<input id="new-pay-date" type="date" class="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-xs text-white outline-none focus:border-indigo-500 transition-all">
+						</div>
+						<div class="space-y-1.5">
+							<label class="text-[8px] font-black text-slate-500 uppercase ml-1">Amount (INR)</label>
+							<input id="new-pay-amt" type="number" placeholder="0.00" class="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-xs text-white outline-none focus:border-indigo-500 transition-all">
+						</div>
+					</div>
+					<button onclick="createNewPaymentEntry()" class="mt-4 w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-indigo-500/20">
+						Create Installment Request
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
 </body>
 </html>
