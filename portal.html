@@ -1928,17 +1928,12 @@
 				return alert(`Validation Error: The requested amount (₹${inputAmt.toLocaleString('en-IN')}) exceeds the remaining balance (₹${remainingAmt.toLocaleString('en-IN')}).`);
 			}
 
-			// Get current installment count to auto-increment Sl No.
-			const { count } = await sb.from('payments')
-				.select('*', { count: 'exact', head: true })
-				.eq('project_id', pId);
-
 			const { error } = await sb.from('payments').insert({
 				project_id: pId,
 				payment_amt: parseFloat(amt),
 				next_payment_date: date,
-				payment_status: 1, // Default: Pending
-				installment_num: (count || 0) + 1
+				payment_status: 1 // Default: Pending
+				//installment_num: (count || 0) + 1
 			});
 
 			if (!error) {
