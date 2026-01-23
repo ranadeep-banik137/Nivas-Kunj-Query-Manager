@@ -1702,7 +1702,7 @@
 
 			// 2. Fetch All Payments for this project
 			const { data: payments, error: payErr } = await sb.from('payments')
-				.select('payment_amt, created_at, installment_num')
+				.select('payment_amt, created_at, installment_num, payment_status')
 				.eq('project_id', projectId).order('installment_num', { ascending: true });
 
 			if (!project) return;
@@ -1714,7 +1714,7 @@
 			if (project.project_cost && project.eta_submitted === true) {
 				summaryLabels.classList.remove('hidden');
 				
-				const totalPaid = (payments || []).reduce((sum, p) => sum + (p.payment_amt || 0), 0);
+				const totalPaid = (payments || []).filter(p => p.payment_status === 3).reduce((sum, p) => sum + (p.payment_amt || 0), 0);
 				const amountDue = Math.max(0, project.project_cost - totalPaid);
 
 				document.getElementById('label-total-paid').innerText = `₹${totalPaid.toLocaleString('en-IN')}`;
@@ -1739,7 +1739,7 @@
 				const monthTotal = (payments || [])
 					.filter(p => {
 						const pDate = new Date(p.created_at);
-						return pDate.getMonth() === current.getMonth() && pDate.getFullYear() === current.getFullYear();
+						return pDate.getMonth() === current.getMonth() && pDate.getFullYear() === current.getFullYear() && p.payment_status === 3;
 					})
 					.reduce((sum, p) => sum + (p.payment_amt || 0), 0);
 				
