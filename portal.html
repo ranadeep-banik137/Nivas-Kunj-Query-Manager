@@ -1766,13 +1766,29 @@
 					maintainAspectRatio: false,
 					scales: {
 						x: {
-							type: 'time', // Requires chartjs-adapter-date-fns
+							type: 'time',
 							time: {
-								unit: 'day',
-								displayFormats: { day: 'MMM d' }
+								// REMOVE unit: 'day' to allow automatic scaling
+								displayFormats: {
+									day: 'MMM d',
+									month: 'MMM yyyy',
+									year: 'yyyy'
+								}
 							},
-							grid: { display: false },
-							ticks: { color: '#64748b', font: { size: 9, weight: '800' } }
+							grid: { 
+								display: false,
+								drawBorder: false 
+							},
+							ticks: { 
+								color: '#64748b', 
+								font: { size: 9, weight: '800' },
+								autoSkip: true, // This prevents labels from overlapping
+								maxRotation: 0,
+								major: { enabled: true } // Makes month/year labels stand out
+							},
+							// Ensure the chart spans the whole project duration
+							min: startDate.getTime(),
+							max: endDate.getTime()
 						},
 						y: {
 							beginAtZero: true,
