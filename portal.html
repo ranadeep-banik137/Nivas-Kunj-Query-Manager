@@ -1201,10 +1201,8 @@
 		}
 
 		async function executeProjectDeletion(projectId) {
+			//loadAdminProjects()
 			try {
-				// 1. Show Loading State
-				const mainOverlay = document.getElementById('luxury-timeline');
-				mainOverlay.innerHTML = `<div class="flex items-center justify-center h-64 text-slate-500 text-[10px] font-black uppercase animate-pulse">Purging Data...</div>`;
 
 				// 2. Delete Related Payments First (Foreign Key Constraint safety)
 				await sb.from('payments').delete().eq('project_id', projectId);
@@ -1219,13 +1217,7 @@
 
 				alert("Project successfully deleted.");
 
-				// 5. Head back to Projects Tab
-				if (typeof switchTab === 'function') {
-					switchTab('projects'); // Switch back to project list
-				}
-				if (typeof loadAdminProjects === 'function') {
-					loadAdminProjects(); // Refresh the list to reflect deletion
-				}
+				closeWorkspace()
 
 			} catch (err) {
 				console.error("Deletion failed:", err);
