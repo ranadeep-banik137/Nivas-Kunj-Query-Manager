@@ -2011,7 +2011,6 @@
 		async function generatePaymentPDF(activeProjectId) {
 			const printArea = document.getElementById('printable-area');
 			
-			// 1. Fetch Project Details from Supabase (using 'sb' as per your file)
 			const { data: project, error } = await sb
 				.from('projects')
 				.select('project_name, client_email')
@@ -2022,70 +2021,88 @@
 				alert("Error fetching project details for PDF");
 				return;
 			}
-
-			// 2. Filter only "Confirmed" rows from the existing table
-			const tableBody = document.getElementById('payment-history-rows');
-			const rows = Array.from(tableBody.querySelectorAll('tr'));
 			
-			// Filter rows and rebuild table HTML
-			const confirmedRowsHtml = rows
-				.filter(row => row.cells[4]?.innerText.trim().toUpperCase() === "CONFIRMED")
-				.map(row => {
-					// Clone to avoid affecting the UI table
-					const clone = row.cloneNode(true);
-					// Remove the last 'Action' column
-					clone.lastElementChild.remove();
-					return clone.outerHTML;
-				}).join('');
-
-			if (!confirmedRowsHtml) {
-				alert("No confirmed payments found to print.");
+			const { data: payments, error: paymentError } = await sb
+            .from('payments')
+            .select('installment_num, id, created_at, payment_amt, payment_status')
+            .eq('project_id', activeProjectId)
+            .eq('payment_status', 3)
+            .order('installment_num', { ascending: true });
+			
+			if (paymentError) throw new Error("Error fetching payment history");
+			
+			if (!payments || payments.length === 0) {
+				alert("No confirmed payments found to generate an invoice.");
 				return;
 			}
 
-			// 3. Build the professional content into the hidden printable area
+			// 3. Rebuild as a professional Invoice Document
 			printArea.innerHTML = `
-				<div style="padding: 50px; font-family: 'Inter', sans-serif; color: #1e293b; background: white;">
-					<div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #4f46e5; padding-bottom: 25px;">
-						<img src="https://github.com/ranadeep-banik137/NivasKunjInteriors/blob/main/logo%20transparent%20PNG.png?raw=true" style="height: 60px; width: auto;">
+				<div style="padding: 60px; font-family: 'Inter', sans-serif; color: #0f172a; background: white; min-height: 100vh;">
+					
+					<div style="display: flex; justify-content: space-between; border-bottom: 4px solid #4f46e5; padding-bottom: 30px;">
+						<div>
+							<img src="https://github.com/ranadeep-banik137/NivasKunjInteriors/blob/main/logo%20transparent%20PNG.png?raw=true" style="height: 70px; margin-bottom: 15px;">
+							<h2 style="margin: 0; font-size: 18px; font-weight: 800; color: #1e1b4b;">NIVAS KUNJ INTERIORS</h2>
+							<p style="margin: 2px 0; font-size: 11px; color: #64748b;">118, Badrutala Lane, Krishnanagar</p>
+							<p style="margin: 2px 0; font-size: 11px; color: #64748b;">Agartala, Tripura - 799001</p>
+							<p style="margin: 2px 0; font-size: 11px; color: #64748b;">GSTIN: 29AAAAA0000A1Z5</p>
+						</div>
 						<div style="text-align: right;">
-							<h1 style="margin: 0; font-size: 28px; color: #4f46e5; font-weight: 900;">PAYMENT STATEMENT</h1>
-							<p style="margin: 0; font-size: 12px; color: #64748b;">Generated on: ${new Date().toLocaleDateString('en-IN')}</p>
+							<h1 style="margin: 0; font-size: 48px; font-weight: 900; color: #e2e8f0; letter-spacing: -2px; line-height: 1;">RECEIPT</h1>
+							<p style="margin: 10px 0 0 0; font-size: 12px; font-weight: 700; color: #4f46e5;">Date: ${new Date().toLocaleDateString('en-IN')}</p>
+							<p style="margin: 2px 0; font-size: 12px; font-weight: 700;">Ref: NK-${activeProjectId.substring(0,8).toUpperCase()}</p>
 						</div>
 					</div>
 
-					<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 40px; padding: 20px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
+					<div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 40px; margin-top: 40px;">
 						<div>
-							<p style="margin: 0; font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 800; letter-spacing: 1px;">Project Name</p>
-							<p style="margin: 5px 0 0 0; font-size: 15px; font-weight: 700;">${project.project_name}</p>
+							<h3 style="font-size: 10px; text-transform: uppercase; color: #64748b; margin-bottom: 10px; letter-spacing: 1px;">Billed For Project</h3>
+							<p style="font-size: 20px; font-weight: 800; margin: 0; color: #1e1b4b;">Name : ${project.project_name}</p>
+							<p style="font-size: 12px; color: #64748b; margin-top: 5px;">Client email : ${project.client_email}</p>
 						</div>
-						<div>
-							<p style="margin: 0; font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 800; letter-spacing: 1px;">Client Email</p>
-							<p style="margin: 5px 0 0 0; font-size: 15px; font-weight: 700;">${project.client_email}</p>
+						<div style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
+							<h3 style="font-size: 10px; text-transform: uppercase; color: #64748b; margin-bottom: 5px;">Payment Status</h3>
+							<p style="font-size: 16px; font-weight: 800; color: #059669; margin: 0;">OFFICIALLY CONFIRMED</p>
 						</div>
 					</div>
 
-					<table style="width: 100%; border-collapse: collapse; margin-top: 30px;">
+					<table style="width: 100%; border-collapse: collapse; margin-top: 40px;">
 						<thead>
-							<tr style="background: #4f46e5; color: white;">
-								<th style="padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase;">Inst.</th>
-								<th style="padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase;">Transaction ID</th>
-								<th style="padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase;">Date</th>
-								<th style="padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase;">Amount</th>
+							<tr>
+								<th style="text-align: left; padding: 15px; background: #1e1b4b; color: white; font-size: 11px; text-transform: uppercase; border-radius: 8px 0 0 0;">Description</th>
+								<th style="text-align: left; padding: 15px; background: #1e1b4b; color: white; font-size: 11px; text-transform: uppercase;">Transaction ID</th>
+								<th style="text-align: left; padding: 15px; background: #1e1b4b; color: white; font-size: 11px; text-transform: uppercase;">Date</th>
+								<th style="text-align: right; padding: 15px; background: #1e1b4b; color: white; font-size: 11px; text-transform: uppercase; border-radius: 0 8px 0 0;">Amount</th>
 							</tr>
 						</thead>
 						<tbody>
-							${confirmedRowsHtml}
+							${payments.map(item => `
+								<tr>
+									<td style="padding: 15px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 600;">NKPMT${item.installment_num}</td>
+									<td style="padding: 15px; border-bottom: 1px solid #e2e8f0; font-size: 12px; font-family: monospace; color: #64748b;">${item.id}</td>
+									<td style="padding: 15px; border-bottom: 1px solid #e2e8f0; font-size: 13px;">${new Date(item.created_at).toLocaleDateString('en-IN')}</td>
+									<td style="padding: 15px; border-bottom: 1px solid #e2e8f0; font-size: 14px; font-weight: 800; text-align: right;">₹${item.payment_amt.toLocaleString('en-IN')}</td>
+								</tr>
+							`).join('')}
 						</tbody>
 					</table>
 
-					<div style="margin-top: 80px; display: flex; justify-content: space-between; align-items: flex-end;">
-						<div style="max-width: 300px;">
-							<p style="font-size: 10px; color: #94a3b8; line-height: 1.5;">* This is a computer-generated statement of confirmed payments received by Nivas Kunj Interiors.</p>
+					<div style="margin-top: 100px; display: flex; justify-content: space-between; align-items: flex-end;">
+						<div style="max-width: 400px;">
+							<h4 style="font-size: 12px; margin-bottom: 10px;">Terms & Conditions:</h4>
+							<p style="font-size: 10px; color: #94a3b8; line-height: 1.6;">
+								1. This is a computer-generated receipt and requires no physical signature.<br>
+								2. All payments listed above are confirmed and processed.<br>
+								3. For any discrepancies, contact us on our email nivaskunj@gmail.com.
+							</p>
 						</div>
-						<div style="text-align: center;">
-							<img src="https://upload.wikimedia.org/wikipedia/commons/3/3a/Jon_Kirsch_Signature.png" style="height: 50px; margin-bottom: 5px; filter: grayscale(1);">
-							<div style="border-top: 1px solid #000; width: 180px; padding-top: 5px; font-size: 12px; font-weight: 800; text-transform: uppercase;">Authorized Signatory</div>
+						<div style="text-align: center; min-width: 220px;">
+							<img src="https://essentials.pixfort.com/original-demo/wp-content/uploads/sites/34/2020/06/signature.jpg" style="height: 60px; margin-bottom: -15px; filter: contrast(1.2);">
+							<div style="border-top: 2px solid #1e1b4b; padding-top: 10px;">
+								<p style="margin: 0; font-size: 12px; font-weight: 900; text-transform: uppercase; color: #1e1b4b;">Authorized Signatory</p>
+								<p style="margin: 0; font-size: 10px; color: #64748b; font-weight: 600;">Deepjoy Banik, CEO & Founder</p>
+							</div>
 						</div>
 					</div>
 				</div>
