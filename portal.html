@@ -2097,16 +2097,33 @@
 								3. For any discrepancies, contact us on our email nivaskunj@gmail.com.
 							</p>
 						</div>
-						<div style="text-align: center; min-width: 220px;">
-							<img src="https://essentials.pixfort.com/original-demo/wp-content/uploads/sites/34/2020/06/signature.jpg" style="height: 60px; margin-bottom: -15px; filter: contrast(1.2);">
-							<div style="border-top: 2px solid #1e1b4b; padding-top: 10px;">
-								<p style="margin: 0; font-size: 12px; font-weight: 900; text-transform: uppercase; color: #1e1b4b;">Authorized Signatory</p>
+						<div style="text-align: center;">
+							<img id="pdf-sig-img" src="https://essentials.pixfort.com/original-demo/wp-content/uploads/sites/34/2020/06/signature.jpg" 
+								 style="height: 100px; margin-bottom: 5px; mix-blend-mode: multiply;">
+							<div style="border-top: 2px solid #1e1b4b; padding-top: 10px; width: 200px;">
+								<p style="margin: 0; font-size: 12px; font-weight: 900;">Authorized Signatory</p>
 								<p style="margin: 0; font-size: 10px; color: #64748b; font-weight: 600;">Deepjoy Banik, CEO & Founder</p>
 							</div>
 						</div>
 					</div>
 				</div>
 			`;
+			// 3. WAIT FOR IMAGES (Fixed null error)
+			const logoImg = document.getElementById('pdf-logo-img');
+			const sigImg = document.getElementById('pdf-sig-img');
+
+			const waitImg = (img) => new Promise(res => {
+				if (!img) return res(); // Safety check
+				if (img.complete) res();
+				else {
+					img.onload = res;
+					img.onerror = res;
+				}
+			});
+
+			// Small timeout to ensure DOM has registered the new elements
+			await new Promise(r => setTimeout(r, 100));
+			await Promise.all([waitImg(logoImg), waitImg(sigImg)]);
 
 			// 4. Trigger the Print
 			window.print();
