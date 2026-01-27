@@ -1156,46 +1156,89 @@
 			const assetsList = Array.isArray(files) ? files : [];
 			
 			if (assetsList.length === 0) {
-				container.innerHTML = `<div class="col-span-full py-12 text-center text-slate-600 text-[9px] font-black uppercase tracking-[0.3em] border border-dashed border-white/5 rounded-3xl">No documents uploaded</div>`;
+				container.innerHTML = `
+					<div class="col-span-full py-12 text-center text-slate-600 text-[9px] font-black uppercase tracking-[0.3em] border border-dashed border-white/5 rounded-3xl">
+						No documents uploaded
+					</div>`;
 				return;
 			}
 
-			container.innerHTML = assetsList.map(file => {
-				const isImage = /\.(jpg|jpeg|png|webp|avif|gif)$/i.test(file.img_url);
-				const date = new Date(file.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-				
-				const isYou = file.uploaded_by === (window.userSession?.id); 
+			// Tabular Design Implementation
+			container.innerHTML = `
+				<div class="col-span-full overflow-hidden rounded-3xl border border-white/10 bg-slate-900/40 backdrop-blur-md">
+					<div class="overflow-x-auto">
+						<table class="w-full text-left border-collapse">
+							<thead>
+								<tr class="bg-white/5 border-b border-white/10">
+									<th class="px-6 py-5 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Document Name</th>
+									<th class="px-6 py-5 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Description / Content</th>
+									<th class="px-6 py-5 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Uploaded Date</th>
+									<th class="px-6 py-5 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] text-right">Actions</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-white/5">
+								${assetsList.map(file => {
+									// Formatting the date
+									const date = new Date(file.created_at).toLocaleDateString('en-IN', {
+										day: '2-digit', 
+										month: 'short', 
+										year: 'numeric'
+									});
+									
+									// Handling file name (stripping UUID prefix if possible, or using full name)
+									// Note: Using file.img_url to get the filename if your DB column 'name' isn't set yet
+									const rawFileName = file.img_url ? file.img_url.split('/').pop() : 'Unnamed File';
+									const displayName = rawFileName.substring(rawFileName.indexOf('-') + 1);
 
-				return `
-					<div class="bg-slate-900/40 border border-white/5 rounded-3xl overflow-hidden group hover:border-indigo-500/50 transition-all duration-500">
-						<div class="aspect-square relative overflow-hidden bg-slate-950">
-							${isImage 
-								? `<img src="${file.img_url}" class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-700">`
-								: `<div class="w-full h-full flex items-center justify-center"><i data-lucide="file-text" class="w-8 h-8 text-slate-700"></i></div>`
-							}
-							<div class="absolute inset-0 flex items-center justify-center gap-4 opacity-0 group-hover:opacity-100 bg-indigo-600/20 backdrop-blur-sm transition-all">
-								<a href="${file.img_url}" target="_blank" class="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors">
-									<i data-lucide="external-link" class="text-white w-5 h-5"></i>
-								</a>
-								<button onclick="deleteProjectAsset('${file.id}', '${file.img_url}')" class="p-2 bg-red-500/20 hover:bg-red-500 rounded-full transition-colors text-white">
-									<i data-lucide="trash-2" class="w-5 h-5"></i>
-								</button>
-							</div>
-						</div>
-						<div class="p-4 border-t border-white/5 bg-white/[0.01]">
-							<div class="flex flex-col gap-1">
-								<span class="text-[7px] font-black text-slate-500 uppercase tracking-widest">Added By</span>
-								<span class="text-[9px] font-bold text-indigo-400 uppercase">${isYou ? 'You' : 'Admin'}</span>
-							</div>
-							<div class="mt-2 flex flex-col gap-1">
-								<span class="text-[7px] font-black text-slate-500 uppercase tracking-widest">Date</span>
-								<span class="text-[9px] font-bold text-slate-300 uppercase">${date}</span>
-							</div>
-						</div>
+									return `
+									<tr class="hover:bg-white/[0.02] transition-all group">
+										<td class="px-6 py-5">
+											<div class="flex items-center gap-4">
+												<div class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+													<i data-lucide="file-text" class="w-5 h-5"></i>
+												</div>
+												<div>
+													<p class="text-sm font-bold text-slate-200">${displayName}</p>
+													<p class="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-0.5">Asset ID: ${file.id.substring(0,8)}</p>
+												</div>
+											</div>
+										</td>
+										<td class="px-6 py-5">
+											<p class="text-xs text-slate-400 leading-relaxed italic opacity-60">
+												${file.content || "Standard Project Documentation"}
+											</p>
+										</td>
+										<td class="px-6 py-5">
+											<span class="px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-[10px] font-bold border border-white/5">
+												${date}
+											</span>
+										</td>
+										<td class="px-6 py-5 text-right">
+											<div class="flex justify-end items-center gap-2">
+												<button onclick="window.open('${file.img_url}', '_blank')" 
+													class="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all duration-300"
+													title="View Document">
+													<i data-lucide="external-link" class="w-4 h-4"></i>
+												</button>
+												<button onclick="deleteProjectAsset('${file.id}', '${file.img_url}')" 
+													class="p-2.5 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-300"
+													title="Delete Asset">
+													<i data-lucide="trash-2" class="w-4 h-4"></i>
+												</button>
+											</div>
+										</td>
+									</tr>`;
+								}).join('')}
+							</tbody>
+						</table>
 					</div>
-				`;
-			}).join('');
-			lucide.createIcons();
+				</div>
+			`;
+			
+			// Crucial: Refresh Lucide icons after injecting HTML
+			if (typeof lucide !== 'undefined') {
+				lucide.createIcons();
+			}
 		}
 
 		async function confirmDeleteProject(projectId) {
@@ -1236,6 +1279,12 @@
 		async function deleteProjectAsset(recordId, fullImgUrl) {
 			if (!confirm("Are you sure you want to permanently delete this file?")) return;
 
+			if (!fullImgUrl) {
+				console.error("Delete failed: No URL provided for the asset.");
+				alert("Error: File path is missing. Please refresh and try again.");
+				return;
+			}
+
 			try {
 				// 1. ROBUST PATH EXTRACTION
 				// The URL looks like: .../storage/v1/object/public/portal-files/PROJECT_ID/FILENAME.jpg
@@ -1248,7 +1297,7 @@
 				}
 
 				// Remove any URL parameters (like ?t=...) that Supabase adds for caching
-				const storagePath = urlParts[1].split('?')[0];
+				const storagePath = urlParts[1];
 
 				console.log("Deleting from Storage:", storagePath);
 
@@ -2098,7 +2147,7 @@
 							</p>
 						</div>
 						<div style="text-align: center;">
-							<img id="pdf-sig-img" src="https://essentials.pixfort.com/original-demo/wp-content/uploads/sites/34/2020/06/signature.jpg" 
+							<img id="pdf-sig-img" src="https://github.com/ranadeep-banik137/Nivas-Kunj-Query-Manager/blob/main/sig.png?raw=true" 
 								 style="height: 100px; margin-bottom: 5px; margin-left: 30px; mix-blend-mode: multiply;">
 							<div style="border-top: 2px solid #1e1b4b; padding-top: 10px; width: 200px;">
 								<p style="margin: 0; font-size: 12px; font-weight: 900;">Authorized Signatory</p>
