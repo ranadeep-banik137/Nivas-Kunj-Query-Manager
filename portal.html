@@ -1838,7 +1838,14 @@
 
 		async function openPaymentModal(projectId) {
 			const modal = document.getElementById('payment-modal');
-			document.getElementById('modal-project-id').innerText = `Project ID: ${projectId}`;
+			document.getElementById('modal-project-id').innerHTML = `
+				<div class="flex justify-between items-center w-full pr-4">
+					<span>Project ID: ${projectId}</span>
+					<button onclick="generatePaymentPDF('${projectId}')" class="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all">
+						<i data-lucide="download" class="w-3 h-3"></i> Export to PDF
+					</button>
+				</div>
+			`;
 			modal.dataset.projectId = projectId; // Store for the 'Submit' action
 			modal.classList.remove('hidden');
 
@@ -1994,6 +2001,25 @@
 			// Log the intent for debugging
 			console.log(`User initiated payment request for ID: ${paymentId} (Amount: ₹${amount})`);
 		}
+		
+		function generatePaymentPDF(projectId) {
+            const printContents = document.getElementById('payment-history-rows').parentElement.outerHTML;
+			const originalContents = document.body.innerHTML;
+
+			// Create a printable window
+			document.body.innerHTML = `
+				<div style="padding: 40px; font-family: sans-serif;">
+					<h1 style="text-transform: uppercase;">Payment Statement</h1>
+					<p>Project ID: ${activeProjectId}</p>
+					<hr>
+					${printContents}
+				</div>
+			`;
+			
+			window.print();
+			document.body.innerHTML = originalContents;
+			location.reload(); // Re-binds all JS listeners
+        }
 		
     </script>
 	
