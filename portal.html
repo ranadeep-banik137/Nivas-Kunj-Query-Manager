@@ -2081,6 +2081,8 @@
 				alert("No confirmed payments found to generate an invoice.");
 				return;
 			}
+			
+			const totalAmount = payments.reduce((sum, p) => sum + (Number(p.payment_amt) || 0), 0);
 
 			// 3. Rebuild as a professional Invoice Document
 			printArea.innerHTML = `
@@ -2132,6 +2134,16 @@
 								</tr>
 							`).join('')}
 						</tbody>
+						<tfoot>
+							<tr style="background: #f8fafc;">
+								<td colspan="3" style="padding: 20px 15px; text-align: right; font-size: 12px; font-weight: 900; color: #1e1b4b; text-transform: uppercase; letter-spacing: 1px;">
+									Total Paid Amount:
+								</td>
+								<td style="padding: 20px 15px; text-align: right; font-size: 16px; font-weight: 900; color: #4f46e5; border-bottom: 3px double #4f46e5;">
+									₹${totalAmount.toLocaleString('en-IN')}
+								</td>
+							</tr>
+						</tfoot>
 					</table>
 
 					<div style="margin-top: 100px; display: flex; justify-content: space-between; align-items: flex-end;">
