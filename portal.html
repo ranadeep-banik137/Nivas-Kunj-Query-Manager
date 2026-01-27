@@ -2008,44 +2008,93 @@
 			console.log(`User initiated payment request for ID: ${paymentId} (Amount: ₹${amount})`);
 		}
 		
-		function generatePaymentPDF(projectId) {
-			const tableHtml = document.getElementById('payment-history-rows').parentElement.outerHTML;
+		async function generatePaymentPDF(activeProjectId) {
 			const printArea = document.getElementById('printable-area');
+			
+			// 1. Fetch Project Details from Supabase (using 'sb' as per your file)
+			const { data: project, error } = await sb
+				.from('projects')
+				.select('project_name, client_email')
+				.eq('id', activeProjectId)
+				.single();
 
-			// 1. Build the professional content
+			if (error) {
+				alert("Error fetching project details for PDF");
+				return;
+			}
+
+			// 2. Filter only "Confirmed" rows from the existing table
+			const tableBody = document.getElementById('payment-history-rows');
+			const rows = Array.from(tableBody.querySelectorAll('tr'));
+			
+			// Filter rows and rebuild table HTML
+			const confirmedRowsHtml = rows
+				.filter(row => row.cells[4]?.innerText.trim().toUpperCase() === "CONFIRMED")
+				.map(row => {
+					// Clone to avoid affecting the UI table
+					const clone = row.cloneNode(true);
+					// Remove the last 'Action' column
+					clone.lastElementChild.remove();
+					return clone.outerHTML;
+				}).join('');
+
+			if (!confirmedRowsHtml) {
+				alert("No confirmed payments found to print.");
+				return;
+			}
+
+			// 3. Build the professional content into the hidden printable area
 			printArea.innerHTML = `
-				<div style="padding: 40px; font-family: sans-serif; color: #333;">
-					<div style="display: flex; justify-content: space-between; border-bottom: 2px solid #4f46e5; padding-bottom: 20px;">
-						<div>
-							<h1 style="margin:0; color: #1e1b4b;">NIVAS KUNJ</h1>
-							<p style="margin:0; font-size: 12px; color: #64748b;">Interior Design Statement</p>
-						</div>
+				<div style="padding: 50px; font-family: 'Inter', sans-serif; color: #1e293b; background: white;">
+					<div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #4f46e5; padding-bottom: 25px;">
+						<img src="https://github.com/ranadeep-banik137/NivasKunjInteriors/blob/main/logo%20transparent%20PNG.png?raw=true" style="height: 60px; width: auto;">
 						<div style="text-align: right;">
-							<h2 style="margin:0; color: #4f46e5;">PAYMENT RECEIPT</h2>
-							<p style="margin:0; font-size: 12px;">Project: <b>${projectId}</b></p>
-							<p style="margin:0; font-size: 12px;">Date: ${new Date().toLocaleDateString('en-IN')}</p>
+							<h1 style="margin: 0; font-size: 28px; color: #4f46e5; font-weight: 900;">PAYMENT STATEMENT</h1>
+							<p style="margin: 0; font-size: 12px; color: #64748b;">Generated on: ${new Date().toLocaleDateString('en-IN')}</p>
 						</div>
 					</div>
-					<div style="margin-top: 30px;">
-						${tableHtml}
+
+					<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 40px; padding: 20px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
+						<div>
+							<p style="margin: 0; font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 800; letter-spacing: 1px;">Project Name</p>
+							<p style="margin: 5px 0 0 0; font-size: 15px; font-weight: 700;">${project.project_name}</p>
+						</div>
+						<div>
+							<p style="margin: 0; font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 800; letter-spacing: 1px;">Client Email</p>
+							<p style="margin: 5px 0 0 0; font-size: 15px; font-weight: 700;">${project.client_email}</p>
+						</div>
 					</div>
-					<div style="margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end;">
-						<p style="font-size: 10px; color: #94a3b8;">* Computer generated receipt of confirmed transactions.</p>
-						<div style="text-align: center; border-top: 1px solid #000; width: 200px; padding-top: 5px;">
-							<p style="margin:0; font-weight: bold;">Authorized Signatory</p>
+
+					<table style="width: 100%; border-collapse: collapse; margin-top: 30px;">
+						<thead>
+							<tr style="background: #4f46e5; color: white;">
+								<th style="padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase;">Inst.</th>
+								<th style="padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase;">Transaction ID</th>
+								<th style="padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase;">Date</th>
+								<th style="padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase;">Amount</th>
+							</tr>
+						</thead>
+						<tbody>
+							${confirmedRowsHtml}
+						</tbody>
+					</table>
+
+					<div style="margin-top: 80px; display: flex; justify-content: space-between; align-items: flex-end;">
+						<div style="max-width: 300px;">
+							<p style="font-size: 10px; color: #94a3b8; line-height: 1.5;">* This is a computer-generated statement of confirmed payments received by Nivas Kunj Interiors.</p>
+						</div>
+						<div style="text-align: center;">
+							<img src="https://upload.wikimedia.org/wikipedia/commons/3/3a/Jon_Kirsch_Signature.png" style="height: 50px; margin-bottom: 5px; filter: grayscale(1);">
+							<div style="border-top: 1px solid #000; width: 180px; padding-top: 5px; font-size: 12px; font-weight: 800; text-transform: uppercase;">Authorized Signatory</div>
 						</div>
 					</div>
 				</div>
 			`;
 
-			// 2. Hide the last column (Actions/Pay Now) so it doesn't show in the PDF
-			const actionCells = printArea.querySelectorAll('th:last-child, td:last-child');
-			actionCells.forEach(cell => cell.style.display = 'none');
-
-			// 3. Print
+			// 4. Trigger the Print
 			window.print();
 			
-			// 4. Clean up
+			// 5. Clean up
 			printArea.innerHTML = '';
 		}
 		
