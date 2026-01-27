@@ -104,10 +104,16 @@
 			transform: translate(-50%, -20px) !important;
 			opacity: 1 !important;
 		}
+		@media screen { #printable-area { display: none; } }
+		@media print { 
+			body * { visibility: hidden; } 
+			#printable-area, #printable-area * { visibility: visible; }
+			#printable-area { position: absolute; left: 0; top: 0; width: 100%; }
+		}
     </style>
 </head>
 <body>
-
+	<div id="printable-area"></div>
     <div id="loader" class="fixed inset-0 bg-white z-[300] flex flex-col items-center justify-center">
         <div class="w-12 h-12 border-4 border-zinc-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
         <p class="text-zinc-500 font-bold text-[10px] uppercase tracking-[0.3em]">Authenticating</p>
@@ -2003,23 +2009,45 @@
 		}
 		
 		function generatePaymentPDF(projectId) {
-            const printContents = document.getElementById('payment-history-rows').parentElement.outerHTML;
-			const originalContents = document.body.innerHTML;
+			const tableHtml = document.getElementById('payment-history-rows').parentElement.outerHTML;
+			const printArea = document.getElementById('printable-area');
 
-			// Create a printable window
-			document.body.innerHTML = `
-				<div style="padding: 40px; font-family: sans-serif;">
-					<h1 style="text-transform: uppercase;">Payment Statement</h1>
-					<p>Project ID: ${activeProjectId}</p>
-					<hr>
-					${printContents}
+			// 1. Build the professional content
+			printArea.innerHTML = `
+				<div style="padding: 40px; font-family: sans-serif; color: #333;">
+					<div style="display: flex; justify-content: space-between; border-bottom: 2px solid #4f46e5; padding-bottom: 20px;">
+						<div>
+							<h1 style="margin:0; color: #1e1b4b;">NIVAS KUNJ</h1>
+							<p style="margin:0; font-size: 12px; color: #64748b;">Interior Design Statement</p>
+						</div>
+						<div style="text-align: right;">
+							<h2 style="margin:0; color: #4f46e5;">PAYMENT RECEIPT</h2>
+							<p style="margin:0; font-size: 12px;">Project: <b>${projectId}</b></p>
+							<p style="margin:0; font-size: 12px;">Date: ${new Date().toLocaleDateString('en-IN')}</p>
+						</div>
+					</div>
+					<div style="margin-top: 30px;">
+						${tableHtml}
+					</div>
+					<div style="margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end;">
+						<p style="font-size: 10px; color: #94a3b8;">* Computer generated receipt of confirmed transactions.</p>
+						<div style="text-align: center; border-top: 1px solid #000; width: 200px; padding-top: 5px;">
+							<p style="margin:0; font-weight: bold;">Authorized Signatory</p>
+						</div>
+					</div>
 				</div>
 			`;
-			
+
+			// 2. Hide the last column (Actions/Pay Now) so it doesn't show in the PDF
+			const actionCells = printArea.querySelectorAll('th:last-child, td:last-child');
+			actionCells.forEach(cell => cell.style.display = 'none');
+
+			// 3. Print
 			window.print();
-			document.body.innerHTML = originalContents;
-			location.reload(); // Re-binds all JS listeners
-        }
+			
+			// 4. Clean up
+			printArea.innerHTML = '';
+		}
 		
     </script>
 	
