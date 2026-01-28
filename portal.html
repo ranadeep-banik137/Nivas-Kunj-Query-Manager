@@ -1523,7 +1523,11 @@
 		async function handleProjectUpload(input) {
 			const file = input.files[0];
 			if (!file || !activeProjectId) return;
-
+			
+			const label = input.parentElement;
+			const originalHTML = label.innerHTML;
+			label.innerHTML = `<span class="animate-pulse text-indigo-400 font-black text-[10px] tracking-widest">UPLOADING...</span>`;
+			
 			try {
 				const { data: { user } } = await sb.auth.getUser();
 				const fileExt = file.name.split('.').pop();
@@ -1538,10 +1542,12 @@
 				// 2. Store data in memory and show Modal
 				pendingUploadData = { publicUrl, userId: user.id };
 				document.getElementById('description-step-modal').classList.remove('hidden');
+				label.innerHTML = originalHTML;
 				lucide.createIcons();
 
 			} catch (err) {
 				alert("Upload failed: " + err.message);
+				label.innerHTML = originalHTML;
 			} finally {
 				input.value = ''; // Reset input
 			}
