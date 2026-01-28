@@ -202,6 +202,19 @@
 			</div>
 
 			<div id="projects-view" class="tab-content hidden">
+				<div class="flex justify-between items-center mb-8 bg-white/5 p-6 rounded-[32px] border border-white/10 backdrop-blur-md">
+					<div>
+						<h2 class="text-2xl font-black text-white uppercase tracking-tighter">Project Portfolio</h2>
+						<p class="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] mt-1">Live Architectural & Interior Workspaces</p>
+					</div>
+					<div id="admin-project-actions" class="hidden">
+						<button onclick="openManualProjectModal()" class="group flex items-center gap-3 bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-2xl transition-all shadow-lg shadow-indigo-500/20 active:scale-95">
+							<i data-lucide="plus-circle" class="w-5 h-5 group-hover:rotate-90 transition-transform"></i>
+							<span class="text-[10px] font-black uppercase tracking-widest">Manual Project</span>
+						</button>
+					</div>
+				</div>
+				
 				<div id="projects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 					</div>
 			</div>
@@ -324,6 +337,7 @@
 
 				if (profile.is_admin) {
 					document.getElementById('admin-view').classList.remove('hidden');
+					document.getElementById('admin-project-actions')?.classList.remove('hidden');
 					fetchAdminData();
 				} else {
 					document.getElementById('client-view').classList.remove('hidden');
@@ -1523,7 +1537,11 @@
 		async function handleProjectUpload(input) {
 			const file = input.files[0];
 			if (!file || !activeProjectId) return;
-
+			
+			const label = input.parentElement;
+			const originalHTML = label.innerHTML;
+			label.innerHTML = `<span class="animate-pulse text-indigo-400 font-black text-[10px] tracking-widest">UPLOADING...</span>`;
+			
 			try {
 				const { data: { user } } = await sb.auth.getUser();
 				const fileExt = file.name.split('.').pop();
@@ -1538,21 +1556,30 @@
 				// 2. Store data in memory and show Modal
 				pendingUploadData = { publicUrl, userId: user.id };
 				document.getElementById('description-step-modal').classList.remove('hidden');
+				label.innerHTML = originalHTML;
 				lucide.createIcons();
 
 			} catch (err) {
 				alert("Upload failed: " + err.message);
+				label.innerHTML = originalHTML;
 			} finally {
 				input.value = ''; // Reset input
 			}
 		}
 		
 		async function finalizeAssetUpload() {
+			const category = document.getElementById('modal-category').value;
 			const subCategory = document.getElementById('modal-sub-category').value;
 			const customDesc = document.getElementById('modal-custom-desc').value;
 			
-			if (!subCategory) {
-				alert("Please select an area.");
+			// MANDATORY VALIDATION
+			if (!category || category === "") {
+				alert("Please select a Space Category.");
+				return;
+			}
+
+			if (!subCategory || subCategory === "") {
+				alert("Please select a specific Area.");
 				return;
 			}
 
@@ -2245,15 +2272,28 @@
 			washroom: ['Washroom-1', 'Washroom-2', 'Lavatory', 'Child Care'],
 			lifestyle: ['Living Room', 'Store Room', 'Study Room', 'Puja Room', 'Hall-1', 'Hall-2'],
 			kitchen: ['Kitchen-1', 'Kitchen-2', 'Dining Area', 'Sink Space'],
-			lobby: ['Balcony-1', 'Balcony-2', 'Balcony-3', 'Lobby', 'Dry Balcony', 'Extra Space'],
+			lobby: ['Balcony-1', 'Balcony-2', 'Balcony-3', 'Lobby', 'Dry Balcony', 'Extra Space', 'Terrace Space', 'Parking'],
 			others: ['Others']
 		};
 
 		function updateModalSubOptions() {
 			const cat = document.getElementById('modal-category').value;
 			const sub = document.getElementById('modal-sub-category');
-			if (!cat) return;
-			sub.innerHTML = spaceData[cat].map(item => `<option value="${item}">${item}</option>`).join('');
+			
+			// BUG FIX: If category is empty, clear and disable the sub-category dropdown
+			if (!cat || cat === "") {
+				sub.innerHTML = '<option value="">Choose Area...</option>';
+				sub.disabled = true;
+				sub.classList.add('opacity-20', 'cursor-not-allowed');
+				return;
+			}
+
+			// Enable and populate
+			sub.disabled = false;
+			sub.classList.remove('opacity-20', 'cursor-not-allowed');
+			sub.innerHTML = '<option value="" selected disabled>Choose Specific Area...</option>' + 
+							spaceData[cat].map(item => `<option value="${item}">${item}</option>`).join('');
+			
 			toggleModalOthers();
 		}
 
@@ -2261,6 +2301,162 @@
 			const val = document.getElementById('modal-sub-category').value;
 			const wrapper = document.getElementById('modal-others-wrapper');
 			val === 'Others' ? wrapper.classList.remove('hidden') : wrapper.classList.add('hidden');
+		}
+		
+		async function cancelAssetUpload() {
+			if (!confirm("Discard this upload? The file will be deleted.")) return;
+
+			if (pendingUploadData && pendingUploadData.publicUrl) {
+				try {
+					// Extract the file path from the public URL
+					const bucketName = 'portal-files';
+					const urlParts = pendingUploadData.publicUrl.split(`${bucketName}/`);
+					if (urlParts.length >= 2) {
+						const filePath = urlParts[1];
+						// Delete from Supabase Storage
+						await sb.storage.from(bucketName).remove([filePath]);
+					}
+				} catch (err) {
+					console.error("Cleanup error:", err);
+				}
+			}
+
+			// Reset UI and global state
+			document.getElementById('description-step-modal').classList.add('hidden');
+			document.getElementById('modal-category').value = "";
+			document.getElementById('modal-sub-category').innerHTML = '<option value="">Choose Area...</option>';
+			document.getElementById('modal-sub-category').disabled = true;
+			pendingUploadData = null;
+			
+			// Refresh Lucide icons if needed
+			lucide.createIcons();
+		}
+		
+		async function openManualProjectModal() {
+			const modal = document.getElementById('manual-project-modal');
+			const select = document.getElementById('manual-enquiry-link');
+			
+			// Reset and show loading state
+			select.innerHTML = '<option value="">Loading Enquiries...</option>';
+			modal.classList.remove('hidden');
+
+			try {
+				// Fetch: Details (for filter) + Customers (for name) + Raw (for query)
+				// Note: Supabase handles joins via the select string
+				const { data: details, error: detailsErr } = await sb
+				.from('enquiry_details')
+				.select('enquiry_id')
+				.eq('is_project', false);
+
+				if (detailsErr) throw detailsErr;
+
+				if (!details || details.length === 0) {
+					select.innerHTML = '<option value="">No unlinked leads available</option>';
+					return;
+				}
+
+				// Extract the array of IDs to search for in other tables
+				const validIds = details.map(d => d.enquiry_id);
+
+				// 3. Parallel Fetch: Get names from customer_details and query_data from raw_enquiries
+				// Note: raw_enquiries uses 'id' column as requested
+				const [resCust, resRaw] = await Promise.all([
+					sb.from('customer_details').select('enquiry_id, customer_name').in('enquiry_id', validIds),
+					sb.from('raw_enquiries').select('id, query_data').in('id', validIds)
+				]);
+
+				if (resCust.error) throw resCust.error;
+				if (resRaw.error) throw resRaw.error;
+
+				// Populate dropdown
+				let html = '<option value="">-- No Linked Lead --</option>';
+				
+				
+				details.forEach(detail => {
+					// Match customer name
+					const customer = resCust.data.find(c => c.enquiry_id === detail.enquiry_id);
+					// Match raw query (mapping detail.enquiry_id to raw_enquiries.id)
+					const raw = resRaw.data.find(r => r.id === detail.enquiry_id);
+				
+					if (customer && raw) {
+						const name = customer.customer_name || 'Unnamed Client';
+						const query = raw.query_data || 'No description';
+						const shortQuery = query.length > 35 ? query.substring(0, 35) + '...' : query;
+						
+						html += `<option value="${detail.enquiry_id}">${name.toUpperCase()} | ${shortQuery}</option>`;
+					}
+				});
+				
+				select.innerHTML = html;
+
+			} catch (err) {
+				console.error("Fetch Enquiries Error:", err);
+				select.innerHTML = '<option value="">Failed to load enquiries</option>';
+			}
+
+			lucide.createIcons();
+		}
+
+		function closeManualProjectModal() {
+			document.getElementById('manual-project-modal').classList.add('hidden');
+			document.getElementById('manual-project-name').value = '';
+			document.getElementById('manual-client-email').value = '';
+			document.getElementById('manual-enquiry-link').value = ''; // Reset link
+		}
+
+		async function handleManualProjectCreation() {
+			const name = document.getElementById('manual-project-name').value;
+			const email = document.getElementById('manual-client-email').value;
+			const linkedEnquiryId = document.getElementById('manual-enquiry-link').value;
+			const btn = document.getElementById('manual-proj-btn');
+
+			if (!name || !email) {
+				alert("Please provide both Name and Client Email.");
+				return;
+			}
+
+			btn.disabled = true;
+			btn.innerText = "ESTABLISHING...";
+
+			try {
+				const newProjectId = crypto.randomUUID();
+
+				// 1. Insert the Project
+				const { error: projError } = await sb.from('projects').insert({
+					id: newProjectId,
+					project_name: name,
+					client_email: email,
+					current_phase: 'Onboarding',
+					enquiry_id: linkedEnquiryId || null // Link if selected, else null
+				});
+
+				if (projError) throw projError;
+
+				// 2. If an enquiry was linked, mark it as a project in enquiry_details
+				if (linkedEnquiryId) {
+					const { error: updateError } = await sb
+						.from('enquiry_details')
+						.update({ 
+							is_project: true,
+							project_id: newProjectId,
+							status_id: 5 // Set to "Converted" status
+						})
+						.eq('enquiry_id', linkedEnquiryId);
+
+					if (updateError) throw updateError;
+				}
+
+				alert(`PROJECT ESTABLISHED: ${name}`);
+				closeManualProjectModal();
+				if (typeof fetchAdminData === 'function') fetchAdminData();
+
+			} catch (err) {
+				console.error(err);
+				alert("Failed to create manual project: " + err.message);
+			} finally {
+				btn.disabled = false;
+				btn.innerText = "Establish Project";
+			}
 		}
     </script>
 	
@@ -2452,6 +2648,9 @@
 	
 	<div id="description-step-modal" class="fixed inset-0 z-[110] hidden flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4">
 		<div class="bg-slate-900 border border-white/10 w-full max-w-md rounded-3xl p-8 shadow-2xl">
+			<button onclick="cancelAssetUpload()" class="absolute top-6 right-6 p-2 rounded-full bg-white/5 text-slate-500 hover:bg-rose-500/10 hover:text-rose-500 transition-all">
+				<i data-lucide="x" class="w-4 h-4"></i>
+			</button>
 			<div class="flex items-center gap-4 mb-6">
 				<div class="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400">
 					<i data-lucide="tag" class="w-6 h-6"></i>
@@ -2478,7 +2677,7 @@
 
 				<div>
 					<label class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">2. Specific Area</label>
-					<select id="modal-sub-category" onchange="toggleModalOthers()" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500">
+					<select id="modal-sub-category" onchange="toggleModalOthers()" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 disabled:opacity-20 disabled:cursor-not-allowed transition-all">
 						<option value="">Choose Area...</option>
 					</select>
 				</div>
@@ -2494,6 +2693,57 @@
 			</div>
 		</div>
 	</div>
-	
+	<div id="manual-project-modal" class="fixed inset-0 bg-slate-950/40 backdrop-blur-md z-[500] hidden flex items-center justify-center p-6">
+		<div class="bg-slate-900/90 w-full max-w-sm rounded-[32px] border border-white/10 p-6 shadow-2xl overflow-hidden animate-slide-up relative ring-1 ring-white/5">
+			
+			<div class="flex justify-between items-start mb-6">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 shadow-inner">
+						<i data-lucide="layers" class="w-5 h-5"></i>
+					</div>
+					<div>
+						<h3 class="text-sm font-black text-white uppercase tracking-tight">New Workspace</h3>
+						<p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Manual Creation</p>
+					</div>
+				</div>
+				<button onclick="closeManualProjectModal()" class="p-1.5 rounded-lg bg-white/5 text-slate-500 hover:text-rose-400 hover:bg-rose-400/10 transition-all">
+					<i data-lucide="x" class="w-4 h-4"></i>
+				</button>
+			</div>
+
+			<div class="space-y-5">
+				<div class="group">
+					<label class="text-[9px] font-black text-slate-500 uppercase tracking-[0.15em] mb-1.5 block ml-1 group-focus-within:text-indigo-400 transition-colors">Project Title</label>
+					<input type="text" id="manual-project-name" placeholder="e.g. Skyline Residency" 
+						class="w-full bg-slate-950/50 border border-white/5 rounded-xl px-4 py-3 text-xs text-white placeholder:text-slate-700 focus:outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/5 transition-all">
+				</div>
+
+				<div class="group">
+					<label class="text-[9px] font-black text-slate-500 uppercase tracking-[0.15em] mb-1.5 block ml-1 group-focus-within:text-indigo-400 transition-colors">Link Lead (Optional)</label>
+					<div class="relative">
+						<select id="manual-enquiry-link" 
+							class="w-full bg-slate-950/50 border border-white/5 rounded-xl px-4 py-3 text-xs text-white appearance-none focus:outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/5 transition-all cursor-pointer">
+							<option value="">-- No Linked Lead --</option>
+						</select>
+						<i data-lucide="chevron-down" class="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600 pointer-events-none"></i>
+					</div>
+				</div>
+
+				<div class="group">
+					<label class="text-[9px] font-black text-slate-500 uppercase tracking-[0.15em] mb-1.5 block ml-1 group-focus-within:text-indigo-400 transition-colors">Client Login Email</label>
+					<input type="email" id="manual-client-email" placeholder="client@example.com" 
+						class="w-full bg-slate-950/50 border border-white/5 rounded-xl px-4 py-3 text-xs text-white placeholder:text-slate-700 focus:outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/5 transition-all">
+				</div>
+
+				<button onclick="handleManualProjectCreation()" id="manual-proj-btn" 
+					class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[10px] tracking-[0.25em] py-4 rounded-xl transition-all shadow-lg shadow-indigo-500/20 active:scale-[0.97] flex items-center justify-center gap-2 group">
+					<span>Establish Project</span>
+					<i data-lucide="arrow-right" class="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform"></i>
+				</button>
+			</div>
+
+			<div class="absolute -bottom-24 -right-24 w-48 h-48 bg-indigo-500/10 blur-[80px] rounded-full pointer-events-none"></div>
+		</div>
+	</div>
 </body>
 </html>
