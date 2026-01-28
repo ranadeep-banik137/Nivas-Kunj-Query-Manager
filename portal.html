@@ -1524,53 +1524,63 @@
 			const file = input.files[0];
 			if (!file || !activeProjectId) return;
 
-			// 1. Visual feedback: Change button state
-			const label = input.parentElement;
-			const originalHTML = label.innerHTML;
-			label.innerHTML = `<span class="animate-pulse">UPLOADING...</span>`;
-
-			const { data: { user } } = await sb.auth.getUser();
-			const fileExt = file.name.split('.').pop();
-			const fileName = `${activeProjectId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-
 			try {
-				// 2. Upload to Storage
-				const { error: uploadError } = await sb.storage
-					.from('portal-files')
-					.upload(fileName, file);
+				const { data: { user } } = await sb.auth.getUser();
+				const fileExt = file.name.split('.').pop();
+				const fileName = `${activeProjectId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
+				// 1. Upload to Storage ONLY
+				const { error: uploadError } = await sb.storage.from('portal-files').upload(fileName, file);
 				if (uploadError) throw uploadError;
 
 				const { data: { publicUrl } } = sb.storage.from('portal-files').getPublicUrl(fileName);
 
-				// 3. Insert into DB
-				const { error: dbError } = await sb.from('project_files').insert({
-					project_id: activeProjectId,
-					img_url: publicUrl,
-					uploaded_by: user.id,
-					created_at: new Date().toISOString()
-				});
-
-				if (dbError) throw dbError;
-				
-				// 4. REFRESH THE ASSETS UI IMMEDIATELY
-				const { data: updatedFiles, error: fetchError } = await sb
-					.from('project_files')
-					.select('*')
-					.eq('project_id', activeProjectId)
-					.order('created_at', { ascending: false }); // Latest first
-
-				if (!fetchError) {
-					renderWorkspaceAssets(updatedFiles);
-				}
+				// 2. Store data in memory and show Modal
+				pendingUploadData = { publicUrl, userId: user.id };
+				document.getElementById('description-step-modal').classList.remove('hidden');
+				lucide.createIcons();
 
 			} catch (err) {
-				console.error(err);
-				alert("Upload Error: " + err.message);
+				alert("Upload failed: " + err.message);
 			} finally {
-				// 5. Reset button and clear input
-				label.innerHTML = originalHTML;
-				input.value = ''; 
+				input.value = ''; // Reset input
+			}
+		}
+		
+		async function finalizeAssetUpload() {
+			const subCategory = document.getElementById('modal-sub-category').value;
+			const customDesc = document.getElementById('modal-custom-desc').value;
+			
+			if (!subCategory) {
+				alert("Please select an area.");
+				return;
+			}
+
+			const finalContent = (subCategory === 'Others') ? customDesc : subCategory;
+			if (subCategory === 'Others' && !customDesc) {
+				alert("Please specify the custom name.");
+				return;
+			}
+
+			try {
+				const { error: dbError } = await sb.from('project_files').insert([{
+					project_id: activeProjectId,
+					img_url: pendingUploadData.publicUrl,
+					content: finalContent,
+					uploaded_by: pendingUploadData.userId
+				}]);
+
+				if (dbError) throw dbError;
+
+				// Cleanup
+				document.getElementById('description-step-modal').classList.add('hidden');
+				document.getElementById('modal-category').value = '';
+				document.getElementById('modal-custom-desc').value = '';
+				pendingUploadData = null;
+				
+				loadProjectAssets(activeProjectId);
+			} catch (err) {
+				alert("Error saving file info: " + err.message);
 			}
 		}
 		
@@ -2227,6 +2237,31 @@
 			printArea.innerHTML = '';
 		}
 		
+		
+		let pendingUploadData = null; // Global holder
+
+		const spaceData = {
+			bedroom: ['Bedroom-1', 'Bedroom-2', 'Bedroom-3', 'Bedroom-4', 'Bedroom-5'],
+			washroom: ['Washroom-1', 'Washroom-2', 'Lavatory', 'Child Care'],
+			lifestyle: ['Living Room', 'Store Room', 'Study Room', 'Puja Room', 'Hall-1', 'Hall-2'],
+			kitchen: ['Kitchen-1', 'Kitchen-2', 'Dining Area', 'Sink Space'],
+			lobby: ['Balcony-1', 'Balcony-2', 'Balcony-3', 'Lobby', 'Dry Balcony', 'Extra Space'],
+			others: ['Others']
+		};
+
+		function updateModalSubOptions() {
+			const cat = document.getElementById('modal-category').value;
+			const sub = document.getElementById('modal-sub-category');
+			if (!cat) return;
+			sub.innerHTML = spaceData[cat].map(item => `<option value="${item}">${item}</option>`).join('');
+			toggleModalOthers();
+		}
+
+		function toggleModalOthers() {
+			const val = document.getElementById('modal-sub-category').value;
+			const wrapper = document.getElementById('modal-others-wrapper');
+			val === 'Others' ? wrapper.classList.remove('hidden') : wrapper.classList.add('hidden');
+		}
     </script>
 	
 	<div id="project-workspace" class="fixed inset-0 z-[60] bg-slate-950/95 backdrop-blur-xl hidden overflow-y-auto">
@@ -2412,6 +2447,51 @@
 					class="w-full mt-8 py-4 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95">
 				Understood
 			</button>
+		</div>
+	</div>
+	
+	<div id="description-step-modal" class="fixed inset-0 z-[110] hidden flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4">
+		<div class="bg-slate-900 border border-white/10 w-full max-w-md rounded-3xl p-8 shadow-2xl">
+			<div class="flex items-center gap-4 mb-6">
+				<div class="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400">
+					<i data-lucide="tag" class="w-6 h-6"></i>
+				</div>
+				<div>
+					<h3 class="text-lg font-black text-white uppercase tracking-tight">File Details Required</h3>
+					<p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Assign a space to your upload</p>
+				</div>
+			</div>
+
+			<div class="space-y-4">
+				<div>
+					<label class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">1. Space Category</label>
+					<select id="modal-category" onchange="updateModalSubOptions()" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500">
+						<option value="">Select Category...</option>
+						<option value="bedroom">Bedrooms</option>
+						<option value="washroom">Washrooms & Care</option>
+						<option value="lifestyle">Lifestyle & Living</option>
+						<option value="kitchen">Kitchen Space</option>
+						<option value="lobby">Lobby & Balcony</option>
+						<option value="others">Others</option>
+					</select>
+				</div>
+
+				<div>
+					<label class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">2. Specific Area</label>
+					<select id="modal-sub-category" onchange="toggleModalOthers()" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500">
+						<option value="">Choose Area...</option>
+					</select>
+				</div>
+
+				<div id="modal-others-wrapper" class="hidden">
+					<label class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">3. Custom Name</label>
+					<input type="text" id="modal-custom-desc" placeholder="e.g. Roof Garden" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500">
+				</div>
+
+				<button onclick="finalizeAssetUpload()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[10px] tracking-[0.2em] py-4 rounded-xl transition-all mt-4">
+					Confirm & Save File
+				</button>
+			</div>
 		</div>
 	</div>
 	
