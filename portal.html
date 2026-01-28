@@ -1154,6 +1154,7 @@
 		function renderWorkspaceAssets(files) {
 			const container = document.getElementById('workspace-assets');
 			const assetsList = Array.isArray(files) ? files : [];
+			const currentUserId = window.userSession?.id;
 			
 			if (assetsList.length === 0) {
 				container.innerHTML = `
@@ -1162,83 +1163,119 @@
 					</div>`;
 				return;
 			}
-
-			// Tabular Design Implementation
-			container.innerHTML = `
-				<div class="col-span-full overflow-hidden rounded-3xl border border-white/10 bg-slate-900/40 backdrop-blur-md">
-					<div class="overflow-x-auto">
-						<table class="w-full text-left border-collapse">
-							<thead>
-								<tr class="bg-white/5 border-b border-white/10">
-									<th class="px-6 py-5 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Document Name</th>
-									<th class="px-6 py-5 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Description / Content</th>
-									<th class="px-6 py-5 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Uploaded Date</th>
-									<th class="px-6 py-5 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] text-right">Actions</th>
-								</tr>
-							</thead>
-							<tbody class="divide-y divide-white/5">
-								${assetsList.map(file => {
-									// Formatting the date
-									const date = new Date(file.created_at).toLocaleDateString('en-IN', {
-										day: '2-digit', 
-										month: 'short', 
-										year: 'numeric'
-									});
-									
-									// Handling file name (stripping UUID prefix if possible, or using full name)
-									// Note: Using file.img_url to get the filename if your DB column 'name' isn't set yet
-									const rawFileName = file.img_url ? file.img_url.split('/').pop() : 'Unnamed File';
-									const displayName = rawFileName.substring(rawFileName.indexOf('-') + 1);
-
-									return `
-									<tr class="hover:bg-white/[0.02] transition-all group">
-										<td class="px-6 py-5">
-											<div class="flex items-center gap-4">
-												<div class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
-													<i data-lucide="file-text" class="w-5 h-5"></i>
-												</div>
-												<div>
-													<p class="text-sm font-bold text-slate-200">${displayName}</p>
-													<p class="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-0.5">Asset ID: ${file.id.substring(0,8)}</p>
-												</div>
-											</div>
-										</td>
-										<td class="px-6 py-5">
-											<p class="text-xs text-slate-400 leading-relaxed italic opacity-60">
-												${file.content || "Standard Project Documentation"}
-											</p>
-										</td>
-										<td class="px-6 py-5">
-											<span class="px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-[10px] font-bold border border-white/5">
-												${date}
-											</span>
-										</td>
-										<td class="px-6 py-5 text-right">
-											<div class="flex justify-end items-center gap-2">
-												<button onclick="window.open('${file.img_url}', '_blank')" 
-													class="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all duration-300"
-													title="View Document">
-													<i data-lucide="external-link" class="w-4 h-4"></i>
-												</button>
-												<button onclick="deleteProjectAsset('${file.id}', '${file.img_url}')" 
-													class="p-2.5 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-300"
-													title="Delete Asset">
-													<i data-lucide="trash-2" class="w-4 h-4"></i>
-												</button>
-											</div>
-										</td>
-									</tr>`;
-								}).join('')}
-							</tbody>
-						</table>
-					</div>
-				</div>
-			`;
 			
-			// Crucial: Refresh Lucide icons after injecting HTML
-			if (typeof lucide !== 'undefined') {
-				lucide.createIcons();
-			}
+			const uploaderIds = [...new Set(assetsList.map(f => f.uploaded_by).filter(id => id))];
+			if (currentUserId && !uploaderIds.includes(currentUserId)) uploaderIds.push(currentUserId);
+
+			sb.from('profiles')
+				.select('id, is_admin, email')
+				.in('id', uploaderIds)
+				.then(({ data: profiles, error }) => {
+					if (error) {
+						console.error("Profile fetch error:", error);
+						return;
+					}
+
+					// 2. Identify if the person VIEWING the workspace is an admin
+					const viewerProfile = profiles?.find(p => p.id === currentUserId);
+					const viewerIsAdmin = viewerProfile?.is_admin === true;
+
+				// Tabular Design Implementation
+				container.innerHTML = `
+					<div class="col-span-full overflow-hidden rounded-3xl border border-white/10 bg-slate-900/40 backdrop-blur-md">
+						<div class="overflow-x-auto">
+							<table class="w-full text-left border-collapse">
+								<thead>
+									<tr class="bg-white/5 border-b border-white/10">
+										<th class="px-6 py-5 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Document Name</th>
+										<th class="px-6 py-5 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Description / Content</th>
+										<th class="px-6 py-5 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Uploaded By</th>
+										<th class="px-6 py-5 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Uploaded Date</th>
+										<th class="px-6 py-5 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] text-right">Actions</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-white/5">
+									${assetsList.map(file => {
+										// Formatting the date
+										const date = new Date(file.created_at).toLocaleDateString('en-IN', {
+											day: '2-digit', 
+											month: 'short', 
+											year: 'numeric'
+										});
+										
+										// Handling file name (stripping UUID prefix if possible, or using full name)
+										// Note: Using file.img_url to get the filename if your DB column 'name' isn't set yet
+										const rawFileName = file.img_url ? file.img_url.split('/').pop() : 'Unnamed File';
+										const displayName = rawFileName.substring(rawFileName.indexOf('-') + 1);
+										
+										// Logic for "Uploaded By" label
+										const uploader = profiles?.find(p => p.id === file.uploaded_by);
+										const uploaderLabel = uploader?.is_admin ? "Admin" : (uploader?.email || "Unknown");
+
+										// Permission Check: Admin can delete anything. Clients can only delete their own.
+										const isOwner = file.uploaded_by === currentUserId;
+										const canDelete = viewerIsAdmin || isOwner;
+										
+										return `
+										<tr class="hover:bg-white/[0.02] transition-all group">
+											<td class="px-6 py-5">
+												<div class="flex items-center gap-4">
+													<div class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+														<i data-lucide="file-text" class="w-5 h-5"></i>
+													</div>
+													<div>
+														<p class="text-sm font-bold text-slate-200">${displayName}</p>
+														<p class="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-0.5">Asset ID: ${file.id.substring(0,8)}</p>
+													</div>
+												</div>
+											</td>
+											<td class="px-6 py-5">
+												<p class="text-xs text-slate-400 leading-relaxed italic opacity-60">
+													${file.content || "Standard Project Documentation"}
+												</p>
+											</td>
+											<td class="px-6 py-5">
+												<span class="text-[10px] font-black uppercase tracking-widest ${uploaderLabel === 'Admin' ? 'text-indigo-400' : 'text-slate-500'}">
+													${uploaderLabel}
+												</span>
+											</td>
+											<td class="px-6 py-5">
+												<span class="px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-[10px] font-bold border border-white/5">
+													${date}
+												</span>
+											</td>
+											<td class="px-6 py-5 text-right">
+												<div class="flex justify-end items-center gap-2">
+													<button onclick="window.open('${file.img_url}', '_blank')" 
+														class="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all duration-300"
+														title="View Document">
+														<i data-lucide="external-link" class="w-4 h-4"></i>
+													</button>
+													${canDelete ? `
+														<button onclick="deleteProjectAsset('${file.id}', '${file.img_url}')" 
+															class="p-2 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all">
+															<i data-lucide="trash-2" class="w-4 h-4"></i>
+														</button>
+													` : `
+														<div class="p-2 opacity-20" title="Only Admin can delete this file">
+															<i data-lucide="lock" class="w-4 h-4 text-slate-600"></i>
+														</div>
+													`}
+												</div>
+											</td>
+										</tr>`;
+									}).join('')}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				`;
+				
+				// Crucial: Refresh Lucide icons after injecting HTML
+				if (typeof lucide !== 'undefined') {
+					lucide.createIcons();
+				}
+			})
 		}
 
 		async function confirmDeleteProject(projectId) {
