@@ -2332,8 +2332,68 @@
 			lucide.createIcons();
 		}
 		
-		function openManualProjectModal() {
-			document.getElementById('manual-project-modal').classList.remove('hidden');
+		async function openManualProjectModal() {
+			const modal = document.getElementById('manual-project-modal');
+			const select = document.getElementById('manual-enquiry-link');
+			
+			// Reset and show loading state
+			select.innerHTML = '<option value="">Loading Enquiries...</option>';
+			modal.classList.remove('hidden');
+
+			try {
+				// Fetch: Details (for filter) + Customers (for name) + Raw (for query)
+				// Note: Supabase handles joins via the select string
+				const { data: details, error: detailsErr } = await sb
+				.from('enquiry_details')
+				.select('enquiry_id')
+				.eq('is_project', false);
+
+				if (detailsErr) throw detailsErr;
+
+				if (!details || details.length === 0) {
+					select.innerHTML = '<option value="">No unlinked leads available</option>';
+					return;
+				}
+
+				// Extract the array of IDs to search for in other tables
+				const validIds = details.map(d => d.enquiry_id);
+
+				// 3. Parallel Fetch: Get names from customer_details and query_data from raw_enquiries
+				// Note: raw_enquiries uses 'id' column as requested
+				const [resCust, resRaw] = await Promise.all([
+					sb.from('customer_details').select('enquiry_id, customer_name').in('enquiry_id', validIds),
+					sb.from('raw_enquiries').select('id, query_data').in('id', validIds)
+				]);
+
+				if (resCust.error) throw resCust.error;
+				if (resRaw.error) throw resRaw.error;
+
+				// Populate dropdown
+				let html = '<option value="">-- No Linked Lead --</option>';
+				
+				
+				details.forEach(detail => {
+					// Match customer name
+					const customer = resCust.data.find(c => c.enquiry_id === detail.enquiry_id);
+					// Match raw query (mapping detail.enquiry_id to raw_enquiries.id)
+					const raw = resRaw.data.find(r => r.id === detail.enquiry_id);
+				
+					if (customer && raw) {
+						const name = customer.customer_name || 'Unnamed Client';
+						const query = raw.query_data || 'No description';
+						const shortQuery = query.length > 35 ? query.substring(0, 35) + '...' : query;
+						
+						html += `<option value="${detail.enquiry_id}">${name.toUpperCase()} | ${shortQuery}</option>`;
+					}
+				});
+				
+				select.innerHTML = html;
+
+			} catch (err) {
+				console.error("Fetch Enquiries Error:", err);
+				select.innerHTML = '<option value="">Failed to load enquiries</option>';
+			}
+
 			lucide.createIcons();
 		}
 
@@ -2341,11 +2401,13 @@
 			document.getElementById('manual-project-modal').classList.add('hidden');
 			document.getElementById('manual-project-name').value = '';
 			document.getElementById('manual-client-email').value = '';
+			document.getElementById('manual-enquiry-link').value = ''; // Reset link
 		}
 
 		async function handleManualProjectCreation() {
 			const name = document.getElementById('manual-project-name').value;
 			const email = document.getElementById('manual-client-email').value;
+			const linkedEnquiryId = document.getElementById('manual-enquiry-link').value;
 			const btn = document.getElementById('manual-proj-btn');
 
 			if (!name || !email) {
@@ -2359,22 +2421,34 @@
 			try {
 				const newProjectId = crypto.randomUUID();
 
-				const { error } = await sb.from('projects').insert({
+				// 1. Insert the Project
+				const { error: projError } = await sb.from('projects').insert({
 					id: newProjectId,
 					project_name: name,
 					client_email: email,
 					current_phase: 'Onboarding',
-					enquiry_id: null // Explicitly null for external projects
+					enquiry_id: linkedEnquiryId || null // Link if selected, else null
 				});
 
-				if (error) throw error;
+				if (projError) throw projError;
 
-				alert(`PROJECT ESTABLISHED: ${newProjectId}`);
+				// 2. If an enquiry was linked, mark it as a project in enquiry_details
+				if (linkedEnquiryId) {
+					const { error: updateError } = await sb
+						.from('enquiry_details')
+						.update({ 
+							is_project: true,
+							project_id: newProjectId,
+							status_id: 5 // Set to "Converted" status
+						})
+						.eq('enquiry_id', linkedEnquiryId);
+
+					if (updateError) throw updateError;
+				}
+
+				alert(`PROJECT ESTABLISHED: ${name}`);
 				closeManualProjectModal();
-				
-				// Refresh the project view
 				if (typeof fetchAdminData === 'function') fetchAdminData();
-				else location.reload();
 
 			} catch (err) {
 				console.error(err);
@@ -2637,6 +2711,13 @@
 				<div>
 					<label class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Project Title / Site Name</label>
 					<input type="text" id="manual-project-name" placeholder="e.g. Skyline Residency" class="w-full bg-slate-950 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white focus:outline-none focus:border-indigo-500 transition-all">
+				</div>
+				<div>
+					<label class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Link Existing Lead (Optional)</label>
+					<select id="manual-enquiry-link" class="w-full bg-slate-950 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white focus:outline-none focus:border-indigo-500 transition-all appearance-none cursor-pointer">
+						<option value="">-- No Linked Lead --</option>
+					</select>
+					<p class="text-[9px] text-slate-600 font-bold mt-2 uppercase tracking-tighter">Only unlinked enquiries are listed here</p>
 				</div>
 				<div>
 					<label class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Client Login Email</label>
