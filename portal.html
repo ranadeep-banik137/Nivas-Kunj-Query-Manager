@@ -1154,48 +1154,128 @@
 		function renderWorkspaceAssets(files) {
 			const container = document.getElementById('workspace-assets');
 			const assetsList = Array.isArray(files) ? files : [];
+			const currentUserId = window.userSession?.id;
 			
 			if (assetsList.length === 0) {
-				container.innerHTML = `<div class="col-span-full py-12 text-center text-slate-600 text-[9px] font-black uppercase tracking-[0.3em] border border-dashed border-white/5 rounded-3xl">No documents uploaded</div>`;
+				container.innerHTML = `
+					<div class="col-span-full py-12 text-center text-slate-600 text-[9px] font-black uppercase tracking-[0.3em] border border-dashed border-white/5 rounded-3xl">
+						No documents uploaded
+					</div>`;
 				return;
 			}
+			
+			const uploaderIds = [...new Set(assetsList.map(f => f.uploaded_by).filter(id => id))];
+			if (currentUserId && !uploaderIds.includes(currentUserId)) uploaderIds.push(currentUserId);
 
-			container.innerHTML = assetsList.map(file => {
-				const isImage = /\.(jpg|jpeg|png|webp|avif|gif)$/i.test(file.img_url);
-				const date = new Date(file.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-				
-				const isYou = file.uploaded_by === (window.userSession?.id); 
+			sb.from('profiles')
+				.select('id, is_admin, email')
+				.in('id', uploaderIds)
+				.then(({ data: profiles, error }) => {
+					if (error) {
+						console.error("Profile fetch error:", error);
+						return;
+					}
 
-				return `
-					<div class="bg-slate-900/40 border border-white/5 rounded-3xl overflow-hidden group hover:border-indigo-500/50 transition-all duration-500">
-						<div class="aspect-square relative overflow-hidden bg-slate-950">
-							${isImage 
-								? `<img src="${file.img_url}" class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-700">`
-								: `<div class="w-full h-full flex items-center justify-center"><i data-lucide="file-text" class="w-8 h-8 text-slate-700"></i></div>`
-							}
-							<div class="absolute inset-0 flex items-center justify-center gap-4 opacity-0 group-hover:opacity-100 bg-indigo-600/20 backdrop-blur-sm transition-all">
-								<a href="${file.img_url}" target="_blank" class="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors">
-									<i data-lucide="external-link" class="text-white w-5 h-5"></i>
-								</a>
-								<button onclick="deleteProjectAsset('${file.id}', '${file.img_url}')" class="p-2 bg-red-500/20 hover:bg-red-500 rounded-full transition-colors text-white">
-									<i data-lucide="trash-2" class="w-5 h-5"></i>
-								</button>
-							</div>
-						</div>
-						<div class="p-4 border-t border-white/5 bg-white/[0.01]">
-							<div class="flex flex-col gap-1">
-								<span class="text-[7px] font-black text-slate-500 uppercase tracking-widest">Added By</span>
-								<span class="text-[9px] font-bold text-indigo-400 uppercase">${isYou ? 'You' : 'Admin'}</span>
-							</div>
-							<div class="mt-2 flex flex-col gap-1">
-								<span class="text-[7px] font-black text-slate-500 uppercase tracking-widest">Date</span>
-								<span class="text-[9px] font-bold text-slate-300 uppercase">${date}</span>
-							</div>
+					// 2. Identify if the person VIEWING the workspace is an admin
+					const viewerProfile = profiles?.find(p => p.id === currentUserId);
+					const viewerIsAdmin = viewerProfile?.is_admin === true;
+
+				// Tabular Design Implementation
+				container.innerHTML = `
+					<div class="col-span-full overflow-hidden rounded-3xl border border-white/10 bg-slate-900/40 backdrop-blur-md">
+						<div class="overflow-x-auto">
+							<table class="w-full text-left border-collapse">
+								<thead>
+									<tr class="bg-white/5 border-b border-white/10">
+										<th class="px-6 py-5 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Document Name</th>
+										<th class="px-6 py-5 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Description / Content</th>
+										<th class="px-6 py-5 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Uploaded By</th>
+										<th class="px-6 py-5 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Uploaded Date</th>
+										<th class="px-6 py-5 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] text-right">Actions</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-white/5">
+									${assetsList.map(file => {
+										// Formatting the date
+										const date = new Date(file.created_at).toLocaleDateString('en-IN', {
+											day: '2-digit', 
+											month: 'short', 
+											year: 'numeric'
+										});
+										
+										// Handling file name (stripping UUID prefix if possible, or using full name)
+										// Note: Using file.img_url to get the filename if your DB column 'name' isn't set yet
+										const rawFileName = file.img_url ? file.img_url.split('/').pop() : 'Unnamed File';
+										const displayName = rawFileName.substring(rawFileName.indexOf('-') + 1);
+										
+										// Logic for "Uploaded By" label
+										const uploader = profiles?.find(p => p.id === file.uploaded_by);
+										const uploaderLabel = uploader?.is_admin ? "Admin" : (uploader?.email || "Unknown");
+
+										// Permission Check: Admin can delete anything. Clients can only delete their own.
+										const isOwner = file.uploaded_by === currentUserId;
+										const canDelete = viewerIsAdmin || isOwner;
+										
+										return `
+										<tr class="hover:bg-white/[0.02] transition-all group">
+											<td class="px-4 py-3">
+												<div class="flex items-center gap-3">
+													<div class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+														<i data-lucide="file-text" class="w-5 h-5"></i>
+													</div>
+													<div>
+														<p class="text-sm font-bold text-slate-200">${displayName}</p>
+														<p class="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-0.5">Asset ID: ${file.id.substring(0,8)}</p>
+													</div>
+												</div>
+											</td>
+											<td class="px-4 py-3 whitespace-nowrap">
+												<p class="text-xs text-slate-400 leading-relaxed italic opacity-60">
+													${file.content || "Standard Project Documentation"}
+												</p>
+											</td>
+											<td class="px-4 py-3 whitespace-nowrap">
+												<span class="text-[10px] font-black uppercase tracking-widest ${uploaderLabel === 'Admin' ? 'text-indigo-400' : 'text-slate-500'}">
+													${uploaderLabel}
+												</span>
+											</td>
+											<td class="px-4 py-3 whitespace-nowrap">
+												<span class="px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-[10px] font-bold border border-white/5">
+													${date}
+												</span>
+											</td>
+											<td class="px-4 py-3 text-right">
+												<div class="flex justify-end items-center gap-2">
+													<button onclick="window.open('${file.img_url}', '_blank')" 
+														class="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all duration-300"
+														title="View Document">
+														<i data-lucide="external-link" class="w-4 h-4"></i>
+													</button>
+													${canDelete ? `
+														<button onclick="deleteProjectAsset('${file.id}', '${file.img_url}')" 
+															class="p-2 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all">
+															<i data-lucide="trash-2" class="w-4 h-4"></i>
+														</button>
+													` : `
+														<div class="p-2 opacity-20" title="Only Admin can delete this file">
+															<i data-lucide="lock" class="w-4 h-4 text-slate-600"></i>
+														</div>
+													`}
+												</div>
+											</td>
+										</tr>`;
+									}).join('')}
+								</tbody>
+							</table>
 						</div>
 					</div>
 				`;
-			}).join('');
-			lucide.createIcons();
+				
+				// Crucial: Refresh Lucide icons after injecting HTML
+				if (typeof lucide !== 'undefined') {
+					lucide.createIcons();
+				}
+			})
 		}
 
 		async function confirmDeleteProject(projectId) {
@@ -1236,6 +1316,12 @@
 		async function deleteProjectAsset(recordId, fullImgUrl) {
 			if (!confirm("Are you sure you want to permanently delete this file?")) return;
 
+			if (!fullImgUrl) {
+				console.error("Delete failed: No URL provided for the asset.");
+				alert("Error: File path is missing. Please refresh and try again.");
+				return;
+			}
+
 			try {
 				// 1. ROBUST PATH EXTRACTION
 				// The URL looks like: .../storage/v1/object/public/portal-files/PROJECT_ID/FILENAME.jpg
@@ -1248,7 +1334,7 @@
 				}
 
 				// Remove any URL parameters (like ?t=...) that Supabase adds for caching
-				const storagePath = urlParts[1].split('?')[0];
+				const storagePath = urlParts[1];
 
 				console.log("Deleting from Storage:", storagePath);
 
@@ -1438,53 +1524,63 @@
 			const file = input.files[0];
 			if (!file || !activeProjectId) return;
 
-			// 1. Visual feedback: Change button state
-			const label = input.parentElement;
-			const originalHTML = label.innerHTML;
-			label.innerHTML = `<span class="animate-pulse">UPLOADING...</span>`;
-
-			const { data: { user } } = await sb.auth.getUser();
-			const fileExt = file.name.split('.').pop();
-			const fileName = `${activeProjectId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-
 			try {
-				// 2. Upload to Storage
-				const { error: uploadError } = await sb.storage
-					.from('portal-files')
-					.upload(fileName, file);
+				const { data: { user } } = await sb.auth.getUser();
+				const fileExt = file.name.split('.').pop();
+				const fileName = `${activeProjectId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
+				// 1. Upload to Storage ONLY
+				const { error: uploadError } = await sb.storage.from('portal-files').upload(fileName, file);
 				if (uploadError) throw uploadError;
 
 				const { data: { publicUrl } } = sb.storage.from('portal-files').getPublicUrl(fileName);
 
-				// 3. Insert into DB
-				const { error: dbError } = await sb.from('project_files').insert({
-					project_id: activeProjectId,
-					img_url: publicUrl,
-					uploaded_by: user.id,
-					created_at: new Date().toISOString()
-				});
-
-				if (dbError) throw dbError;
-				
-				// 4. REFRESH THE ASSETS UI IMMEDIATELY
-				const { data: updatedFiles, error: fetchError } = await sb
-					.from('project_files')
-					.select('*')
-					.eq('project_id', activeProjectId)
-					.order('created_at', { ascending: false }); // Latest first
-
-				if (!fetchError) {
-					renderWorkspaceAssets(updatedFiles);
-				}
+				// 2. Store data in memory and show Modal
+				pendingUploadData = { publicUrl, userId: user.id };
+				document.getElementById('description-step-modal').classList.remove('hidden');
+				lucide.createIcons();
 
 			} catch (err) {
-				console.error(err);
-				alert("Upload Error: " + err.message);
+				alert("Upload failed: " + err.message);
 			} finally {
-				// 5. Reset button and clear input
-				label.innerHTML = originalHTML;
-				input.value = ''; 
+				input.value = ''; // Reset input
+			}
+		}
+		
+		async function finalizeAssetUpload() {
+			const subCategory = document.getElementById('modal-sub-category').value;
+			const customDesc = document.getElementById('modal-custom-desc').value;
+			
+			if (!subCategory) {
+				alert("Please select an area.");
+				return;
+			}
+
+			const finalContent = (subCategory === 'Others') ? customDesc : subCategory;
+			if (subCategory === 'Others' && !customDesc) {
+				alert("Please specify the custom name.");
+				return;
+			}
+
+			try {
+				const { error: dbError } = await sb.from('project_files').insert([{
+					project_id: activeProjectId,
+					img_url: pendingUploadData.publicUrl,
+					content: finalContent,
+					uploaded_by: pendingUploadData.userId
+				}]);
+
+				if (dbError) throw dbError;
+
+				// Cleanup
+				document.getElementById('description-step-modal').classList.add('hidden');
+				document.getElementById('modal-category').value = '';
+				document.getElementById('modal-custom-desc').value = '';
+				pendingUploadData = null;
+				
+				loadProjectAssets(activeProjectId);
+			} catch (err) {
+				alert("Error saving file info: " + err.message);
 			}
 		}
 		
@@ -1847,9 +1943,6 @@
 			document.getElementById('modal-project-id').innerHTML = `
 				<div class="flex justify-between items-center w-full pr-4">
 					<span>Project ID: ${projectId}</span>
-					<button onclick="generatePaymentPDF('${projectId}')" class="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all">
-						<i data-lucide="download" class="w-3 h-3"></i> Export to PDF
-					</button>
 				</div>
 			`;
 			modal.dataset.projectId = projectId; // Store for the 'Submit' action
@@ -2035,6 +2128,8 @@
 				alert("No confirmed payments found to generate an invoice.");
 				return;
 			}
+			
+			const totalAmount = payments.reduce((sum, p) => sum + (Number(p.payment_amt) || 0), 0);
 
 			// 3. Rebuild as a professional Invoice Document
 			printArea.innerHTML = `
@@ -2086,6 +2181,16 @@
 								</tr>
 							`).join('')}
 						</tbody>
+						<tfoot>
+							<tr style="background: #f8fafc;">
+								<td colspan="3" style="padding: 20px 15px; text-align: right; font-size: 12px; font-weight: 900; color: #1e1b4b; text-transform: uppercase; letter-spacing: 1px;">
+									Total Paid Amount:
+								</td>
+								<td style="padding: 20px 15px; text-align: right; font-size: 16px; font-weight: 900; color: #4f46e5; border-bottom: 3px double #4f46e5;">
+									₹${totalAmount.toLocaleString('en-IN')}
+								</td>
+							</tr>
+						</tfoot>
 					</table>
 
 					<div style="margin-top: 100px; display: flex; justify-content: space-between; align-items: flex-end;">
@@ -2099,7 +2204,7 @@
 						</div>
 						<div style="text-align: center;">
 							<img id="pdf-sig-img" src="https://github.com/ranadeep-banik137/Nivas-Kunj-Query-Manager/blob/main/sig.png?raw=true" 
-								 style="height: 100px; margin-bottom: 5px; margin-left: 30px; mix-blend-mode: multiply;">
+								 style="height: 100px; margin-bottom: 5px; margin-left: 5px; mix-blend-mode: multiply;">
 							<div style="border-top: 2px solid #1e1b4b; padding-top: 10px; width: 200px;">
 								<p style="margin: 0; font-size: 12px; font-weight: 900;">Authorized Signatory</p>
 								<p style="margin: 0; font-size: 10px; color: #64748b; font-weight: 600;">Deepjoy Banik, CEO & Founder</p>
@@ -2132,6 +2237,31 @@
 			printArea.innerHTML = '';
 		}
 		
+		
+		let pendingUploadData = null; // Global holder
+
+		const spaceData = {
+			bedroom: ['Bedroom-1', 'Bedroom-2', 'Bedroom-3', 'Bedroom-4', 'Bedroom-5'],
+			washroom: ['Washroom-1', 'Washroom-2', 'Lavatory', 'Child Care'],
+			lifestyle: ['Living Room', 'Store Room', 'Study Room', 'Puja Room', 'Hall-1', 'Hall-2'],
+			kitchen: ['Kitchen-1', 'Kitchen-2', 'Dining Area', 'Sink Space'],
+			lobby: ['Balcony-1', 'Balcony-2', 'Balcony-3', 'Lobby', 'Dry Balcony', 'Extra Space'],
+			others: ['Others']
+		};
+
+		function updateModalSubOptions() {
+			const cat = document.getElementById('modal-category').value;
+			const sub = document.getElementById('modal-sub-category');
+			if (!cat) return;
+			sub.innerHTML = spaceData[cat].map(item => `<option value="${item}">${item}</option>`).join('');
+			toggleModalOthers();
+		}
+
+		function toggleModalOthers() {
+			const val = document.getElementById('modal-sub-category').value;
+			const wrapper = document.getElementById('modal-others-wrapper');
+			val === 'Others' ? wrapper.classList.remove('hidden') : wrapper.classList.add('hidden');
+		}
     </script>
 	
 	<div id="project-workspace" class="fixed inset-0 z-[60] bg-slate-950/95 backdrop-blur-xl hidden overflow-y-auto">
@@ -2244,14 +2374,24 @@
 	</div>
 	<div id="payment-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-xl z-[600] hidden flex items-center justify-center p-4">
 		<div class="bg-slate-900 w-full max-w-4xl rounded-[32px] border border-white/10 shadow-2xl flex flex-col overflow-hidden animate-slide-up">
-			<div class="p-6 border-b border-white/5 flex justify-between items-center">
+			<div class="p-6 border-b border-white/5 flex justify-between items-center bg-slate-900/50 backdrop-blur-md">
 				<div>
 					<h3 class="text-xl font-black text-white tracking-tighter uppercase">Payment Workspace</h3>
 					<p id="modal-project-id" class="text-slate-500 text-[8px] font-black uppercase tracking-[0.2em] mt-1">Project ID: --</p>
 				</div>
-				<button onclick="document.getElementById('payment-modal').classList.add('hidden')" class="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-red-500/20 text-slate-400 rounded-xl transition">
-					<i data-lucide="x" class="w-5 h-5"></i>
-				</button>
+
+				<div class="flex items-center gap-3">
+					<button onclick="generatePaymentPDF(activeProjectId)" 
+						class="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500 text-indigo-400 hover:text-white border border-indigo-500/20 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/10">
+						<i data-lucide="download" class="w-3.5 h-3.5"></i> 
+						Export to PDF
+					</button>
+
+					<button onclick="document.getElementById('payment-modal').classList.add('hidden')" 
+						class="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-xl transition-all border border-white/5">
+						<i data-lucide="x" class="w-5 h-5"></i>
+					</button>
+				</div>
 			</div>
 
 			<div class="p-8 overflow-y-auto max-h-[70vh]">
@@ -2307,6 +2447,51 @@
 					class="w-full mt-8 py-4 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95">
 				Understood
 			</button>
+		</div>
+	</div>
+	
+	<div id="description-step-modal" class="fixed inset-0 z-[110] hidden flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4">
+		<div class="bg-slate-900 border border-white/10 w-full max-w-md rounded-3xl p-8 shadow-2xl">
+			<div class="flex items-center gap-4 mb-6">
+				<div class="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400">
+					<i data-lucide="tag" class="w-6 h-6"></i>
+				</div>
+				<div>
+					<h3 class="text-lg font-black text-white uppercase tracking-tight">File Details Required</h3>
+					<p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Assign a space to your upload</p>
+				</div>
+			</div>
+
+			<div class="space-y-4">
+				<div>
+					<label class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">1. Space Category</label>
+					<select id="modal-category" onchange="updateModalSubOptions()" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500">
+						<option value="">Select Category...</option>
+						<option value="bedroom">Bedrooms</option>
+						<option value="washroom">Washrooms & Care</option>
+						<option value="lifestyle">Lifestyle & Living</option>
+						<option value="kitchen">Kitchen Space</option>
+						<option value="lobby">Lobby & Balcony</option>
+						<option value="others">Others</option>
+					</select>
+				</div>
+
+				<div>
+					<label class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">2. Specific Area</label>
+					<select id="modal-sub-category" onchange="toggleModalOthers()" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500">
+						<option value="">Choose Area...</option>
+					</select>
+				</div>
+
+				<div id="modal-others-wrapper" class="hidden">
+					<label class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">3. Custom Name</label>
+					<input type="text" id="modal-custom-desc" placeholder="e.g. Roof Garden" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500">
+				</div>
+
+				<button onclick="finalizeAssetUpload()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[10px] tracking-[0.2em] py-4 rounded-xl transition-all mt-4">
+					Confirm & Save File
+				</button>
+			</div>
 		</div>
 	</div>
 	
