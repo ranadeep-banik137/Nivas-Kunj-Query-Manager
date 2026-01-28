@@ -202,6 +202,19 @@
 			</div>
 
 			<div id="projects-view" class="tab-content hidden">
+				<div class="flex justify-between items-center mb-8 bg-white/5 p-6 rounded-[32px] border border-white/10 backdrop-blur-md">
+					<div>
+						<h2 class="text-2xl font-black text-white uppercase tracking-tighter">Project Portfolio</h2>
+						<p class="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] mt-1">Live Architectural & Interior Workspaces</p>
+					</div>
+					<div id="admin-project-actions" class="hidden">
+						<button onclick="openManualProjectModal()" class="group flex items-center gap-3 bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-2xl transition-all shadow-lg shadow-indigo-500/20 active:scale-95">
+							<i data-lucide="plus-circle" class="w-5 h-5 group-hover:rotate-90 transition-transform"></i>
+							<span class="text-[10px] font-black uppercase tracking-widest">Manual Project</span>
+						</button>
+					</div>
+				</div>
+				
 				<div id="projects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 					</div>
 			</div>
@@ -324,6 +337,7 @@
 
 				if (profile.is_admin) {
 					document.getElementById('admin-view').classList.remove('hidden');
+					document.getElementById('admin-project-actions')?.classList.remove('hidden');
 					fetchAdminData();
 				} else {
 					document.getElementById('client-view').classList.remove('hidden');
@@ -2317,6 +2331,59 @@
 			// Refresh Lucide icons if needed
 			lucide.createIcons();
 		}
+		
+		function openManualProjectModal() {
+			document.getElementById('manual-project-modal').classList.remove('hidden');
+			lucide.createIcons();
+		}
+
+		function closeManualProjectModal() {
+			document.getElementById('manual-project-modal').classList.add('hidden');
+			document.getElementById('manual-project-name').value = '';
+			document.getElementById('manual-client-email').value = '';
+		}
+
+		async function handleManualProjectCreation() {
+			const name = document.getElementById('manual-project-name').value;
+			const email = document.getElementById('manual-client-email').value;
+			const btn = document.getElementById('manual-proj-btn');
+
+			if (!name || !email) {
+				alert("Please provide both Name and Client Email.");
+				return;
+			}
+
+			btn.disabled = true;
+			btn.innerText = "ESTABLISHING...";
+
+			try {
+				const newProjectId = crypto.randomUUID();
+
+				const { error } = await sb.from('projects').insert({
+					id: newProjectId,
+					project_name: name,
+					client_email: email,
+					current_phase: 'Onboarding',
+					enquiry_id: null // Explicitly null for external projects
+				});
+
+				if (error) throw error;
+
+				alert(`PROJECT ESTABLISHED: ${newProjectId}`);
+				closeManualProjectModal();
+				
+				// Refresh the project view
+				if (typeof fetchAdminData === 'function') fetchAdminData();
+				else location.reload();
+
+			} catch (err) {
+				console.error(err);
+				alert("Failed to create manual project: " + err.message);
+			} finally {
+				btn.disabled = false;
+				btn.innerText = "Establish Project";
+			}
+		}
     </script>
 	
 	<div id="project-workspace" class="fixed inset-0 z-[60] bg-slate-950/95 backdrop-blur-xl hidden overflow-y-auto">
@@ -2552,6 +2619,34 @@
 			</div>
 		</div>
 	</div>
-	
+	<div id="manual-project-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-[500] hidden flex items-center justify-center p-4">
+		<div class="bg-slate-900 w-full max-w-md rounded-[40px] border border-white/10 p-8 shadow-2xl overflow-hidden animate-slide-up">
+			<div class="flex justify-between items-center mb-8">
+				<div class="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400">
+					<i data-lucide="box" class="w-6 h-6"></i>
+				</div>
+				<button onclick="closeManualProjectModal()" class="text-slate-500 hover:text-white transition-colors">
+					<i data-lucide="x" class="w-6 h-6"></i>
+				</button>
+			</div>
+
+			<h3 class="text-xl font-black text-white uppercase tracking-tighter mb-2">New Manual Project</h3>
+			<p class="text-xs text-slate-500 font-bold uppercase tracking-widest mb-8">Establish a workspace without a lead</p>
+
+			<div class="space-y-6">
+				<div>
+					<label class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Project Title / Site Name</label>
+					<input type="text" id="manual-project-name" placeholder="e.g. Skyline Residency" class="w-full bg-slate-950 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white focus:outline-none focus:border-indigo-500 transition-all">
+				</div>
+				<div>
+					<label class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Client Login Email</label>
+					<input type="email" id="manual-client-email" placeholder="client@example.com" class="w-full bg-slate-950 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white focus:outline-none focus:border-indigo-500 transition-all">
+				</div>
+				<button onclick="handleManualProjectCreation()" id="manual-proj-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[10px] tracking-[0.3em] py-5 rounded-2xl transition-all shadow-xl shadow-indigo-500/20 active:scale-[0.98]">
+					Establish Project
+				</button>
+			</div>
+		</div>
+	</div>
 </body>
 </html>
