@@ -221,13 +221,6 @@
 					</div>
 			</div>
 			<div id="users-view" class="hidden animate-slide-up">
-				<div class="flex justify-between items-end mb-10">
-					<div>
-						<h2 class="text-4xl font-black tracking-tighter uppercase text-white mb-2">User Registry</h2>
-						<p class="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">Full Administrative Control</p>
-					</div>
-				</div>
-
 				<div class="glass-panel rounded-[40px] overflow-hidden border border-white/10">
 					<table class="w-full text-left">
 						<thead class="bg-white/5 border-b border-white/10">
@@ -2658,39 +2651,53 @@
 				const { data: users, error } = await sb.from('profiles').select('*').order('email');
 				if (error) throw error;
 
-				tbody.innerHTML = users.map(user => `
+				tbody.innerHTML = users.map(user => {
+				// Check if this row belongs to the logged-in user
+				const isSelf = user.id === window.userSession.id;
+
+				return `
 					<tr class="border-b border-white/5 hover:bg-white/[0.02] transition-all group">
 						<td class="px-8 py-6">
 							<div class="flex items-center gap-4">
-								<div class="w-10 h-10 rounded-2xl bg-indigo-600/20 border border-indigo-500/20 flex items-center justify-center text-indigo-400 font-black text-xs">
+								<div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 font-black text-xs">
 									${(user.email || 'U').charAt(0).toUpperCase()}
 								</div>
-								<div>
-									<input id="name-${user.id}" type="text" value="${user.full_name || ''}" onchange="updateUserInfo('${user.id}', 'full_name', this.value)"
-										class="bg-transparent border-none text-sm font-bold text-white focus:ring-0 p-0 w-full cursor-edit">
-									<p class="text-[10px] text-slate-500 font-medium">${user.email}</p>
+								<div class="flex-1">
+									<input type="text" value="${user.full_name || ''}" 
+										onchange="updateUserInfo('${user.id}', 'full_name', this.value)"
+										class="bg-transparent border-none text-sm font-bold text-white focus:ring-0 p-0 w-full hover:bg-white/5 rounded px-1 transition-all"
+										${isSelf ? 'title="Use Profile Settings to change your name"' : ''}>
+									<p class="text-[10px] text-slate-500 font-medium">${user.email} ${isSelf ? '<span class="text-indigo-400 font-bold ml-2">(YOU)</span>' : ''}</p>
 								</div>
 							</div>
 						</td>
 						<td class="px-8 py-6">
 							<select onchange="updateUserInfo('${user.id}', 'is_admin', this.value === 'true')" 
-								class="bg-slate-900 border border-white/5 rounded-lg text-[9px] font-black uppercase px-3 py-1 text-slate-400 focus:border-indigo-500 transition-all">
+								${isSelf ? 'disabled' : ''}
+								class="bg-slate-900 border border-white/5 rounded-lg text-[9px] font-black uppercase px-3 py-1.5 text-slate-400 focus:border-indigo-500 ${isSelf ? 'opacity-50 cursor-not-allowed' : ''}">
 								<option value="false" ${!user.is_admin ? 'selected' : ''}>Client</option>
 								<option value="true" ${user.is_admin ? 'selected' : ''}>Admin</option>
 							</select>
 						</td>
 						<td class="px-8 py-6 text-right">
-							<div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
-								<button onclick="sendPasswordReset('${user.email}')" title="Reset Password" class="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl hover:bg-indigo-600 hover:text-white transition-all">
-									<i data-lucide="key-round" class="w-4 h-4"></i>
+							<div class="flex justify-end gap-2">
+								<button onclick="sendPasswordReset('${user.email}')" title="Send Access Mail" class="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl hover:bg-indigo-600 hover:text-white transition-all">
+									<i data-lucide="mail-warning" class="w-4 h-4"></i>
 								</button>
-								<button onclick="deleteUser('${user.id}')" title="Delete User" class="p-2.5 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-600 hover:text-white transition-all">
-									<i data-lucide="trash-2" class="w-4 h-4"></i>
-								</button>
+								${isSelf ? `
+									<button disabled title="You cannot delete your own account" class="p-2.5 bg-white/5 text-slate-600 rounded-xl cursor-not-allowed opacity-30">
+										<i data-lucide="user-minus" class="w-4 h-4"></i>
+									</button>
+								` : `
+									<button onclick="deleteUser('${user.id}')" title="Delete User" class="p-2.5 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-600 hover:text-white transition-all">
+										<i data-lucide="user-minus" class="w-4 h-4"></i>
+									</button>
+								`}
 							</div>
 						</td>
 					</tr>
-				`).join('');
+				`;
+			}).join('');
 				lucide.createIcons();
 			} catch (e) {
 				console.error(e);
@@ -2699,10 +2706,15 @@
 		
 		// 1. Update Name or Role
 		async function updateUserInfo(userId, field, value) {
+		
+			if (userId === window.userSession.id && field === 'is_admin') {
+				alert("Security Restriction: You cannot change your own administrative role.");
+				fetchUsers(); // Reset UI
+				return;
+			}
 			// 1. ADD CONFIRMATION FOR ROLE CHANGES
 			if (field === 'is_admin') {
-				const newRole = value === true ? 'ADMIN' : 'CLIENT';
-				const msg = `CRITICAL: You are about to change this user's role to ${newRole}.\n\n` +
+				const msg = `CRITICAL: You are about to change this user's role to ${value === true ? 'ADMIN' : 'CLIENT'}.\n\n` +
 							(value === true ? 
 							"This will grant them FULL administrative access to all leads, projects, and financials." : 
 							"This will REVOKE their admin access. They will only see their own projects.");
