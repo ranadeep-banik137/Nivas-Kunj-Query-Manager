@@ -525,7 +525,7 @@
 				.select('id')
 				.eq('email', email);
 			const isRegistered = profileData && profileData.length > 0;
-			
+			const isAdmin = window.currentUserProfile?.is_admin === true;
 			
 			document.getElementById('modal-title').innerText = `${customer?.customer_name || 'New Lead'} - Query`;
 			document.getElementById('modal-subtitle').innerText = lead.query_data;
@@ -560,9 +560,15 @@
 					</div>
 					<div class="space-y-1.5">
 						<label class="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">Pipeline Status</label>
+						${isAdmin ? `
 						<select id="edit-status" class="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-xs font-bold text-white outline-none focus:ring-1 focus:ring-indigo-500">
 							${statRes.data.map(s => `<option value="${s.status_id}" ${details?.status_id === s.status_id ? 'selected' : ''}>${s.status_details}</option>`).join('')}
 						</select>
+						` : `
+						<div class="w-full px-4 py-2.5 bg-slate-950 border border-white/5 rounded-xl text-xs font-bold text-indigo-400">
+							${statRes.data.find(s => s.status_id === details?.status_id)?.status_details || 'Under Review'}
+						</div>
+						`}
 					</div>
 				</div>
 				
@@ -2537,7 +2543,7 @@
 				// 2. Fetch Detailed Data (Added is_quote to select)
 				const [rawRes, detailRes] = await Promise.all([
 					sb.from('raw_enquiries').select('id, query_data, created_at, is_quote').in('id', enquiryIds),
-					sb.from('enquiry_details').select('enquiry_id, status_id').in('enquiry_id', enquiryIds)
+					sb.from('enquiry_details').select('enquiry_id, status_id, is_project').in('enquiry_id', enquiryIds)
 				]);
 
 				if (rawRes.error) throw rawRes.error;
@@ -2552,7 +2558,7 @@
 					if (raw) {
 						const queryText = raw.query_data || 'Requirement details pending';
 						const date = new Date(raw.created_at).toLocaleDateString();
-						const isProject = detail?.status_id === 5; 
+						const isProject = detail?.is_project === true;
 						
 						// Determine Type Label
 						const typeLabel = raw.is_quote ? 'Detailed Quote' : 'Direct Enquiry';
