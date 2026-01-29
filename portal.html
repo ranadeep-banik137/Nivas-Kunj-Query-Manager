@@ -2699,8 +2699,31 @@
 		
 		// 1. Update Name or Role
 		async function updateUserInfo(userId, field, value) {
+			// 1. ADD CONFIRMATION FOR ROLE CHANGES
+			if (field === 'is_admin') {
+				const newRole = value === true ? 'ADMIN' : 'CLIENT';
+				const msg = `CRITICAL: You are about to change this user's role to ${newRole}.\n\n` +
+							(value === true ? 
+							"This will grant them FULL administrative access to all leads, projects, and financials." : 
+							"This will REVOKE their admin access. They will only see their own projects.");
+				
+				if (!confirm(msg)) {
+					// If they cancel, we need to refresh the table to reset the dropdown visually
+					fetchUsers(); 
+					return;
+				}
+			}
+
+			// 2. PROCEED WITH UPDATE
 			const { error } = await sb.from('profiles').update({ [field]: value }).eq('id', userId);
-			if (error) alert("Sync Error: " + error.message);
+			
+			if (error) {
+				alert("Sync Error: " + error.message);
+				fetchUsers(); // Refresh to show actual database state
+			} else {
+				// Success notification (Optional)
+				console.log(`User ${userId} updated: ${field} -> ${value}`);
+			}
 		}
 
 		// 2. Password Reset (Sends Official Supabase Reset Email)
