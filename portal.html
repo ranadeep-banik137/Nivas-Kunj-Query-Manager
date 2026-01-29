@@ -622,21 +622,23 @@
 					</div>
 				` : `
 					<div id="onboarding-zone" class="mt-8">
-						<div class="p-5 bg-indigo-600/10 border border-indigo-500/20 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
-							<div class="flex items-center gap-3">
-								<div class="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
-									<i data-lucide="layers" class="w-5 h-5"></i>
+						${isAdmin? `
+							<div class="p-5 bg-indigo-600/10 border border-indigo-500/20 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+								<div class="flex items-center gap-3">
+									<div class="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+										<i data-lucide="layers" class="w-5 h-5"></i>
+									</div>
+									<div>
+										<h4 class="text-xs font-black text-white uppercase tracking-tight">Cluster Management</h4>
+										<p class="text-[9px] text-indigo-300/60 font-medium">Scan for other enquiries from this client to group them.</p>
+									</div>
 								</div>
-								<div>
-									<h4 class="text-xs font-black text-white uppercase tracking-tight">Cluster Management</h4>
-									<p class="text-[9px] text-indigo-300/60 font-medium">Scan for other enquiries from this client to group them.</p>
-								</div>
-							</div>
-							<button onclick="searchSiblingsForOnboarding('${leadId}', '${email}')" 
-								class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-indigo-500/20">
-								Scan for Related Items
-							</button>
-						</div>
+								<button onclick="searchSiblingsForOnboarding('${leadId}', '${email}')" 
+									class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-indigo-500/20">
+									Scan for Related Items
+								</button>
+							</div>` : ``
+							}
 					</div>
 				`}
 
