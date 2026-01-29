@@ -144,6 +144,9 @@
 					class="px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all duration-300 flex items-center gap-2">
 					<i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i> Projects
 				</button>
+				<button onclick="switchTab('users')" id="tab-users" class="hidden px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all duration-300 flex items-center gap-2">
+					<i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Users
+				</button>
             </div>
 
             <div class="flex items-center gap-3">
@@ -200,7 +203,6 @@
 			<div id="enquiries-view" class="tab-content">
 				<div id="admin-content" class="space-y-4"></div>
 			</div>
-
 			<div id="projects-view" class="tab-content hidden">
 				<div class="flex justify-between items-center mb-8 bg-white/5 p-6 rounded-[32px] border border-white/10 backdrop-blur-md">
 					<div>
@@ -217,6 +219,21 @@
 				
 				<div id="projects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 					</div>
+			</div>
+			<div id="users-view" class="hidden animate-slide-up">
+				<div class="glass-panel rounded-[40px] overflow-hidden border border-white/10">
+					<table class="w-full text-left">
+						<thead class="bg-white/5 border-b border-white/10">
+							<tr>
+								<th class="px-8 py-5 text-[9px] font-black text-slate-500 uppercase tracking-widest">Identify</th>
+								<th class="px-8 py-5 text-[9px] font-black text-slate-500 uppercase tracking-widest">Access Level</th>
+								<th class="px-8 py-5 text-[9px] font-black text-slate-500 uppercase tracking-widest text-right">Management</th>
+							</tr>
+						</thead>
+						<tbody id="users-table-body">
+							</tbody>
+					</table>
+				</div>
 			</div>
 		</main>
 	</div>
@@ -270,13 +287,23 @@
 		</nav>
 
 		<main class="max-w-6xl mx-auto px-8 py-12">
-			<header class="mb-12">
-				<h2 class="text-4xl font-black tracking-tighter uppercase mb-2">Activity Log</h2>
-				<p class="text-slate-500 text-xs font-medium uppercase tracking-widest">Tracking your architectural enquiries & design requests</p>
+			<header class="mb-12 flex flex-col md:flex-row justify-between items-end gap-6">
+				<div>
+					<h2 class="text-4xl font-black tracking-tighter uppercase mb-2">Workspace Hub</h2>
+					<p class="text-slate-500 text-xs font-medium uppercase tracking-widest">Manage your projects and enquiries</p>
+				</div>
+				
+				<div class="flex bg-slate-900 border border-white/5 p-1 rounded-xl">
+					<button onclick="toggleClientView('projects')" id="btn-client-projects" class="px-6 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all bg-indigo-600 text-white shadow-lg">
+						Active Projects
+					</button>
+					<button onclick="toggleClientView('enquiries')" id="btn-client-enquiries" class="px-6 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all text-slate-500 hover:text-white">
+						My Enquiries
+					</button>
+				</div>
 			</header>
 
-			<div id="client-activity-content" class="space-y-4">
-				</div>
+			<div id="client-activity-content" class="space-y-4"></div>
 		</main>
 	</div>
 
@@ -332,6 +359,10 @@
 				}
 				
 				window.currentUserProfile = profile
+				
+				if (profile.is_admin) {
+					document.getElementById('tab-users')?.classList.remove('hidden');
+				}
 
 				if (loader) loader.classList.add('hidden');
 
@@ -515,7 +546,7 @@
 				.select('id')
 				.eq('email', email);
 			const isRegistered = profileData && profileData.length > 0;
-			
+			const isAdmin = window.currentUserProfile?.is_admin === true;
 			
 			document.getElementById('modal-title').innerText = `${customer?.customer_name || 'New Lead'} - Query`;
 			document.getElementById('modal-subtitle').innerText = lead.query_data;
@@ -550,9 +581,15 @@
 					</div>
 					<div class="space-y-1.5">
 						<label class="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">Pipeline Status</label>
+						${isAdmin ? `
 						<select id="edit-status" class="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-xs font-bold text-white outline-none focus:ring-1 focus:ring-indigo-500">
 							${statRes.data.map(s => `<option value="${s.status_id}" ${details?.status_id === s.status_id ? 'selected' : ''}>${s.status_details}</option>`).join('')}
 						</select>
+						` : `
+						<div class="w-full px-4 py-2.5 bg-slate-950 border border-white/5 rounded-xl text-xs font-bold text-indigo-400">
+							${statRes.data.find(s => s.status_id === details?.status_id)?.status_details || 'Under Review'}
+						</div>
+						`}
 					</div>
 				</div>
 				
@@ -606,21 +643,23 @@
 					</div>
 				` : `
 					<div id="onboarding-zone" class="mt-8">
-						<div class="p-5 bg-indigo-600/10 border border-indigo-500/20 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
-							<div class="flex items-center gap-3">
-								<div class="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
-									<i data-lucide="layers" class="w-5 h-5"></i>
+						${isAdmin? `
+							<div class="p-5 bg-indigo-600/10 border border-indigo-500/20 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+								<div class="flex items-center gap-3">
+									<div class="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+										<i data-lucide="layers" class="w-5 h-5"></i>
+									</div>
+									<div>
+										<h4 class="text-xs font-black text-white uppercase tracking-tight">Cluster Management</h4>
+										<p class="text-[9px] text-indigo-300/60 font-medium">Scan for other enquiries from this client to group them.</p>
+									</div>
 								</div>
-								<div>
-									<h4 class="text-xs font-black text-white uppercase tracking-tight">Cluster Management</h4>
-									<p class="text-[9px] text-indigo-300/60 font-medium">Scan for other enquiries from this client to group them.</p>
-								</div>
-							</div>
-							<button onclick="searchSiblingsForOnboarding('${leadId}', '${email}')" 
-								class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-indigo-500/20">
-								Scan for Related Items
-							</button>
-						</div>
+								<button onclick="searchSiblingsForOnboarding('${leadId}', '${email}')" 
+									class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-indigo-500/20">
+									Scan for Related Items
+								</button>
+							</div>` : ``
+							}
 					</div>
 				`}
 
@@ -649,19 +688,29 @@
 			const titles = {
 				'enquiries': 'Enquiry Pipeline',
 				'quotes': 'Active Quotations',
-				'projects': 'Project Dashboard'
+				'projects': 'Project Dashboard',
+				'users' : 'User Management'
 			};
 			document.getElementById('tab-title').innerText = titles[tab];
 
 			const enquiriesView = document.getElementById('enquiries-view');
 			const projectsView = document.getElementById('projects-view');
+			const usersView = document.getElementById('users-view');
 
 			if (tab === 'projects') {
 				enquiriesView.classList.add('hidden');
+				usersView.classList.add('hidden');
 				projectsView.classList.remove('hidden');
 				loadAdminProjects(); // Load project-specific data
+			} else if (tab === 'users') {
+				projectsView.classList.add('hidden');
+				enquiriesView.classList.add('hidden');
+				usersView.classList.remove('hidden');
+				document.getElementById('users-view').classList.remove('hidden');
+				fetchUsers();
 			} else {
 				projectsView.classList.add('hidden');
+				usersView.classList.add('hidden');
 				enquiriesView.classList.remove('hidden');
 				fetchAdminData(); // Existing logic for Enquiries/Quotes
 			}
@@ -830,7 +879,31 @@
 					</div>
 					<div class="p-4 bg-slate-900/50 border border-white/5 rounded-2xl">
 						<p class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Bedrooms</p>
-						<p class="text-xs font-bold text-white">${q.bedrooms} BHK</p>
+						<p class="text-xs font-bold text-white">${q.bedrooms}</p>
+					</div>
+					<div class="p-4 bg-slate-900/50 border border-white/5 rounded-2xl">
+						<p class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Living Rooms</p>
+						<p class="text-xs font-bold text-white">${q.living_rooms}</p>
+					</div>
+					<div class="p-4 bg-slate-900/50 border border-white/5 rounded-2xl">
+						<p class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Kitchens</p>
+						<p class="text-xs font-bold text-white">${q.kitchens}</p>
+					</div>
+					<div class="p-4 bg-slate-900/50 border border-white/5 rounded-2xl">
+						<p class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Washrooms</p>
+						<p class="text-xs font-bold text-white">${q.washrooms}</p>
+					</div>
+					<div class="p-4 bg-slate-900/50 border border-white/5 rounded-2xl">
+						<p class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Indoor temple</p>
+						<p class="text-xs font-bold text-white">${q.puja_ghar}</p>
+					</div>
+					<div class="p-4 bg-slate-900/50 border border-white/5 rounded-2xl">
+						<p class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Dining space</p>
+						<p class="text-xs font-bold text-white">${q.dining}</p>
+					</div>
+					<div class="p-4 bg-slate-900/50 border border-white/5 rounded-2xl">
+						<p class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Balconies</p>
+						<p class="text-xs font-bold text-white">${q.balcony}</p>
 					</div>
 					<div class="p-4 bg-slate-900/50 border border-white/5 rounded-2xl">
 						<p class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Area</p>
@@ -869,40 +942,50 @@
 
 				// Step 2: Render Project Cards
 				container.innerHTML = projects.map(proj => `
-					<div class="glass-panel p-8 rounded-[32px] border border-white/10 mb-6 hover:border-indigo-500/30 transition-all">
+					<div class="glass-panel p-8 rounded-[32px] border border-white/10 mb-6 hover:border-indigo-500/30 transition-all group">
 						<div class="flex flex-col lg:flex-row justify-between gap-6 mb-8">
 							<div>
 								<div class="flex items-center gap-3 mb-2">
-									<span class="px-3 py-1 bg-indigo-500/20 text-indigo-400 text-[9px] font-black uppercase rounded-lg tracking-widest">Project ID: ${proj.id.slice(0,8)}</span>
-									<span class="text-slate-500 text-[9px] font-bold uppercase">${new Date(proj.created_at).toLocaleDateString()}</span>
+									<span class="px-3 py-1 bg-indigo-500/20 text-indigo-400 text-[9px] font-black uppercase rounded-lg tracking-widest">Active Project</span>
+									<span class="text-slate-500 text-[9px] font-bold uppercase tracking-widest">${new Date(proj.created_at).toLocaleDateString()}</span>
 								</div>
 								<h2 class="text-3xl font-black text-white tracking-tighter uppercase">${proj.project_name}</h2>
 							</div>
 							<div class="text-right">
-								<p class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Current Status</p>
+								<p class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Current Phase</p>
 								<span class="text-xl font-bold text-emerald-400 uppercase tracking-tighter">${proj.current_phase}</span>
 							</div>
 						</div>
 
-						<div class="mb-8">
-							<div class="flex justify-between items-end mb-2">
-								<span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Completion Progress</span>
-								<span class="text-lg font-black text-white">${proj.progress_percent || 0}%</span>
+						<div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+							<div class="md:col-span-2">
+								<div class="flex justify-between items-end mb-2">
+									<span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Construction Progress</span>
+									<span class="text-lg font-black text-white">${proj.progress_percent || 0}%</span>
+								</div>
+								<div class="w-full h-3 bg-white/5 rounded-full overflow-hidden border border-white/5">
+									<div class="h-full bg-gradient-to-r from-indigo-600 to-emerald-500 transition-all duration-1000 shadow-[0_0_15px_rgba(79,70,229,0.3)]" style="width: ${proj.progress_percent || 0}%"></div>
+								</div>
 							</div>
-							<div class="w-full h-3 bg-white/5 rounded-full overflow-hidden border border-white/5">
-								<div class="h-full bg-gradient-to-r from-indigo-600 to-emerald-500 transition-all duration-1000" style="width: ${proj.progress_percent || 0}%"></div>
+							
+							<div class="bg-white/5 rounded-2xl p-4 border border-white/5">
+								<p class="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Architect Name</p>
+								<p class="text-xs font-bold text-slate-200 uppercase">${proj.assigned_lead || 'Not Assigned'}</p>
 							</div>
 						</div>
 
-						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-							<button onclick="openProjectWorkspace('${proj.id}')" class="btn-luxury py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white">
+						<div class="flex flex-col sm:flex-row gap-3">
+							<button onclick="openProjectWorkspace('${proj.id}')" class="flex-[2] bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-indigo-600/20 active:scale-[0.98]">
 								Enter Project Workspace
 							</button>
-							<div class="flex gap-2">
-								<button onclick="initiateProjectCall('${proj.id}')" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 py-4 rounded-2xl text-[10px] font-black uppercase text-white transition flex items-center justify-center gap-2">
-									<i data-lucide="phone" class="w-4 h-4"></i> Call Team
-								</button>
-							</div>
+							
+							<a href="tel:+91XXXXXXXXXX" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 py-4 rounded-2xl text-[10px] font-black uppercase text-white transition flex items-center justify-center gap-2">
+								<i data-lucide="phone" class="w-3.5 h-3.5"></i> Call Office
+							</a>
+
+							<a href="https://wa.me/91XXXXXXXXXX?text=Hi, regarding ${proj.project_name}..." target="_blank" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 py-4 rounded-2xl text-[10px] font-black uppercase text-white transition flex items-center justify-center gap-2">
+								<i data-lucide="message-circle" class="w-3.5 h-3.5 text-emerald-400"></i> WhatsApp
+							</a>
 						</div>
 					</div>
 				`).join('');
@@ -2457,6 +2540,219 @@
 				btn.disabled = false;
 				btn.innerText = "Establish Project";
 			}
+		}
+		
+		let currentClientView = 'projects';
+
+		async function toggleClientView(view) {
+			currentClientView = view;
+			const email = window.userSession.email;
+			
+			// Update Button Styles
+			const pBtn = document.getElementById('btn-client-projects');
+			const eBtn = document.getElementById('btn-client-enquiries');
+			
+			if (view === 'projects') {
+				pBtn.className = "px-6 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all bg-indigo-600 text-white shadow-lg";
+				eBtn.className = "px-6 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all text-slate-500 hover:text-white";
+				initializeClientDashboard(email);
+			} else {
+				eBtn.className = "px-6 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all bg-indigo-600 text-white shadow-lg";
+				pBtn.className = "px-6 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all text-slate-500 hover:text-white";
+				fetchClientEnquiries(email);
+			}
+		}
+		
+		
+		async function fetchClientEnquiries(email) {
+			const container = document.getElementById('client-activity-content');
+			container.innerHTML = `<div class="py-20 text-center animate-pulse text-slate-400 font-bold text-[10px] uppercase tracking-widest">Gathering your history...</div>`;
+
+			try {
+				// 1. Fetch enquiry_ids linked to this email
+				const { data: customers, error: err1 } = await sb
+					.from('customer_details')
+					.select('enquiry_id')
+					.eq('email_id', email);
+
+				if (err1) throw err1;
+				if (!customers || customers.length === 0) {
+					container.innerHTML = `<div class="p-20 bg-white/5 rounded-[40px] text-center text-slate-500 uppercase font-bold text-xs tracking-widest border border-dashed border-white/10">No records found for ${email}.</div>`;
+					return;
+				}
+
+				const enquiryIds = customers.map(c => c.enquiry_id);
+
+				// 2. Fetch Detailed Data (Added is_quote to select)
+				const [rawRes, detailRes] = await Promise.all([
+					sb.from('raw_enquiries').select('id, query_data, created_at, is_quote').in('id', enquiryIds),
+					sb.from('enquiry_details').select('enquiry_id, status_id, is_project').in('enquiry_id', enquiryIds)
+				]);
+
+				if (rawRes.error) throw rawRes.error;
+				if (detailRes.error) throw detailRes.error;
+
+				// 3. Manual Join and Render
+				let html = '';
+				enquiryIds.forEach(id => {
+					const raw = rawRes.data.find(r => r.id === id);
+					const detail = detailRes.data.find(d => d.enquiry_id === id);
+					
+					if (raw) {
+						const queryText = raw.query_data || 'Requirement details pending';
+						const date = new Date(raw.created_at).toLocaleDateString();
+						const isProject = detail?.is_project === true;
+						
+						// Determine Type Label
+						const typeLabel = raw.is_quote ? 'Detailed Quote' : 'Direct Enquiry';
+						const typeColor = raw.is_quote ? 'text-amber-400 border-amber-500/20 bg-amber-500/5' : 'text-indigo-400 border-indigo-500/20 bg-indigo-500/5';
+
+						html += `
+							<div class="bg-slate-900/40 backdrop-blur-xl p-8 rounded-[40px] border border-white/10 hover:border-indigo-500/30 transition-all animate-slide-up">
+								<div class="flex flex-col md:flex-row justify-between gap-6">
+									<div class="flex-1">
+										<div class="flex items-center gap-3 mb-4">
+											<span class="px-3 py-1 bg-white/5 text-slate-500 text-[9px] font-black uppercase rounded-lg tracking-widest border border-white/5">Ref: ${id.slice(0,8)}</span>
+											
+											<span class="px-3 py-1 ${typeColor} text-[9px] font-black uppercase rounded-lg tracking-widest border">
+												${typeLabel}
+											</span>
+
+											<span class="px-3 py-1 ${isProject ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-slate-400 bg-white/5 border-white/5'} text-[9px] font-black uppercase rounded-lg tracking-widest border">
+												${isProject ? 'Project Active' : 'In Review'}
+											</span>
+										</div>
+										<h3 class="text-2xl font-black text-white tracking-tighter uppercase mb-2 line-clamp-1">${queryText}</h3>
+										<p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Submitted on ${date}</p>
+									</div>
+									<div class="flex items-center">
+										<button onclick="manageLead('${id}')" class="w-full md:w-auto bg-white/5 hover:bg-white/10 border border-white/10 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95">
+											Track Progress
+										</button>
+									</div>
+								</div>
+							</div>
+						`;
+					}
+				});
+
+				container.innerHTML = html || `<div class="p-20 text-center text-slate-500 font-bold uppercase text-[10px] tracking-widest">No details available.</div>`;
+
+			} catch (err) {
+				console.error("Client Enquiry Fetch Error:", err);
+				container.innerHTML = `<div class="p-20 text-center text-rose-400 font-bold text-[10px] uppercase tracking-widest">Sync Error: ${err.message}</div>`;
+			}
+		}
+		async function fetchUsers() {
+			const tbody = document.getElementById('users-table-body');
+			tbody.innerHTML = `<tr><td colspan="3" class="py-20 text-center animate-pulse text-slate-500 font-bold uppercase text-[10px] tracking-widest">Syncing Profiles...</td></tr>`;
+
+			try {
+				const { data: users, error } = await sb.from('profiles').select('*').order('email');
+				if (error) throw error;
+
+				tbody.innerHTML = users.map(user => {
+				// Check if this row belongs to the logged-in user
+				const isSelf = user.id === window.userSession.id;
+
+				return `
+					<tr class="border-b border-white/5 hover:bg-white/[0.02] transition-all group">
+						<td class="px-8 py-6">
+							<div class="flex items-center gap-4">
+								<div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 font-black text-xs">
+									${(user.email || 'U').charAt(0).toUpperCase()}
+								</div>
+								<div class="flex-1">
+									<input type="text" value="${user.full_name || ''}" 
+										onchange="updateUserInfo('${user.id}', 'full_name', this.value)"
+										class="bg-transparent border-none text-sm font-bold text-white focus:ring-0 p-0 w-full hover:bg-white/5 rounded px-1 transition-all"
+										${isSelf ? 'title="Use Profile Settings to change your name"' : ''}>
+									<p class="text-[10px] text-slate-500 font-medium">${user.email} ${isSelf ? '<span class="text-indigo-400 font-bold ml-2">(YOU)</span>' : ''}</p>
+								</div>
+							</div>
+						</td>
+						<td class="px-8 py-6">
+							<select onchange="updateUserInfo('${user.id}', 'is_admin', this.value === 'true')" 
+								${isSelf ? 'disabled' : ''}
+								class="bg-slate-900 border border-white/5 rounded-lg text-[9px] font-black uppercase px-3 py-1.5 text-slate-400 focus:border-indigo-500 ${isSelf ? 'opacity-50 cursor-not-allowed' : ''}">
+								<option value="false" ${!user.is_admin ? 'selected' : ''}>Client</option>
+								<option value="true" ${user.is_admin ? 'selected' : ''}>Admin</option>
+							</select>
+						</td>
+						<td class="px-8 py-6 text-right">
+							<div class="flex justify-end gap-2">
+								<button onclick="sendPasswordReset('${user.email}')" title="Send Access Mail" class="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl hover:bg-indigo-600 hover:text-white transition-all">
+									<i data-lucide="mail-warning" class="w-4 h-4"></i>
+								</button>
+								${isSelf ? `
+									<button disabled title="You cannot delete your own account" class="p-2.5 bg-white/5 text-slate-600 rounded-xl cursor-not-allowed opacity-30">
+										<i data-lucide="user-minus" class="w-4 h-4"></i>
+									</button>
+								` : `
+									<button onclick="deleteUser('${user.id}')" title="Delete User" class="p-2.5 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-600 hover:text-white transition-all">
+										<i data-lucide="user-minus" class="w-4 h-4"></i>
+									</button>
+								`}
+							</div>
+						</td>
+					</tr>
+				`;
+			}).join('');
+				lucide.createIcons();
+			} catch (e) {
+				console.error(e);
+			}
+		}
+		
+		// 1. Update Name or Role
+		async function updateUserInfo(userId, field, value) {
+		
+			if (userId === window.userSession.id && field === 'is_admin') {
+				alert("Security Restriction: You cannot change your own administrative role.");
+				fetchUsers(); // Reset UI
+				return;
+			}
+			// 1. ADD CONFIRMATION FOR ROLE CHANGES
+			if (field === 'is_admin') {
+				const msg = `CRITICAL: You are about to change this user's role to ${value === true ? 'ADMIN' : 'CLIENT'}.\n\n` +
+							(value === true ? 
+							"This will grant them FULL administrative access to all leads, projects, and financials." : 
+							"This will REVOKE their admin access. They will only see their own projects.");
+				
+				if (!confirm(msg)) {
+					// If they cancel, we need to refresh the table to reset the dropdown visually
+					fetchUsers(); 
+					return;
+				}
+			}
+
+			// 2. PROCEED WITH UPDATE
+			const { error } = await sb.from('profiles').update({ [field]: value }).eq('id', userId);
+			
+			if (error) {
+				alert("Sync Error: " + error.message);
+				fetchUsers(); // Refresh to show actual database state
+			} else {
+				// Success notification (Optional)
+				console.log(`User ${userId} updated: ${field} -> ${value}`);
+			}
+		}
+
+		// 2. Password Reset (Sends Official Supabase Reset Email)
+		async function sendPasswordReset(email) {
+			const { error } = await sb.auth.resetPasswordForEmail(email, {
+				redirectTo: window.location.origin + '/portal.html',
+			});
+			if (error) alert("Error: " + error.message);
+			else alert("Success! A recovery link has been sent to " + email);
+		}
+
+		// 3. Delete User Profile
+		async function deleteUser(id) {
+			if (!confirm("Are you sure? This user will lose access to the portal immediately.")) return;
+			const { error } = await sb.from('profiles').delete().eq('id', id);
+			if (error) alert(error.message);
+			else fetchUsers();
 		}
     </script>
 	
