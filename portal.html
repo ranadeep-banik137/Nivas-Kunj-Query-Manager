@@ -2086,6 +2086,14 @@
 							}
 						</td>
 						<td class="py-4 font-bold text-white">₹${p.payment_amt.toLocaleString()}</td>
+						<td class="py-4">
+							<span class="px-2 py-0.5 bg-white/5 rounded text-[9px] text-slate-400 border border-white/5 uppercase">
+								${p.payment_mode || 'N/A'}
+							</span>
+						</td>
+						<td class="py-4 text-slate-500 italic font-medium">
+							${p.remarks || 'Standard Request'}
+						</td>
 						<td class="py-4 text-[8px] font-black uppercase tracking-widest ${isConfirmed ? 'text-emerald-400' : 'text-amber-400'}">
 							${s?.status || 'Pending'}
 						</td>
@@ -2125,7 +2133,13 @@
 			const date = document.getElementById('new-pay-date').value;
 			const amt = document.getElementById('new-pay-amt').value;
 
-			if (!pId || !date || !amt) return alert("Please fill all fields");
+			// NEW: Capture Mode and Purpose
+			const mode = document.getElementById('new-pay-mode').value;
+			const purposeSelect = document.getElementById('new-pay-purpose').value;
+			const customPurpose = document.getElementById('new-pay-purpose-custom').value;
+			const finalRemarks = purposeSelect === 'Others' ? customPurpose : purposeSelect;
+
+			if (!pId || !date || !amt || (purposeSelect === 'Others' && !customPurpose)) return alert("Please fill all fields");
 
 			// --- ADDITIONAL CHECK: REMAINING AMOUNT VALIDATION ---
 			const remainingText = document.getElementById('label-amount-due').innerText;
@@ -2141,6 +2155,8 @@
 				project_id: pId,
 				payment_amt: parseFloat(amt),
 				next_payment_date: date,
+				payment_mode: mode,      // Mapping to DB
+				remarks: finalRemarks,   // Mapping to DB
 				payment_status: 1 // Default: Pending
 				//installment_num: (count || 0) + 1
 			});
@@ -2891,11 +2907,13 @@
 					<table class="w-full text-left">
 						<thead>
 							<tr class="text-[9px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5">
-								<th class="pb-4 px-2">SL</th>
-								<th class="pb-4">Payment ID</th>
-								<th class="pb-4">Request Date</th>
-								<th class="pb-4">Amount</th>
-								<th class="pb-4">Status</th>
+								<th class="pb-4 px-2 text-left">SL</th>
+								<th class="pb-4 text-left">Payment ID</th>
+								<th class="pb-4 text-left">Request Date</th>
+								<th class="pb-4 text-left">Amount</th>
+								<th class="pb-4 px-2 text-left">Mode</th> 
+								<th class="pb-4 px-2 text-left">Remarks</th> 
+								<th class="pb-4 text-left">Status</th>
 								<th class="pb-4 text-right">Action</th>
 							</tr>
 						</thead>
@@ -2906,15 +2924,39 @@
 
 				<div id="admin-payment-section" class="pt-8 border-t border-white/5 hidden">
 					<h4 class="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-4">Request Next Payment</h4>
-					<div class="grid grid-cols-2 gap-4">
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div class="space-y-1.5">
 							<label class="text-[8px] font-black text-slate-500 uppercase ml-1">Next Payment Date</label>
 							<input id="new-pay-date" type="date" class="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-xs text-white outline-none focus:border-indigo-500 transition-all">
 						</div>
+
 						<div class="space-y-1.5">
-							<label class="text-[8px] font-black text-slate-500 uppercase ml-1">Amount (INR)</label>
-							<input id="new-pay-amt" type="number" placeholder="0.00" class="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-xs text-white outline-none focus:border-indigo-500 transition-all">
+							<label class="text-[8px] font-black text-slate-500 uppercase ml-1">Request Amount</label>
+							<input id="new-pay-amt" type="number" class="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-xs text-white outline-none focus:border-indigo-500 transition-all">
 						</div>
+
+						<div class="space-y-1.5">
+							<label class="text-[8px] font-black text-slate-500 uppercase ml-1">Mode of Payment</label>
+							<select id="new-pay-mode" class="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-xs text-white outline-none focus:border-indigo-500">
+								<option value="UPI">UPI</option>
+								<option value="Net Banking">Net Banking</option>
+								<option value="Cash">Cash / Cheque</option>
+							</select>
+						</div>
+
+						<div class="space-y-1.5">
+							<label class="text-[8px] font-black text-slate-500 uppercase ml-1">Purpose of Payment</label>
+							<select id="new-pay-purpose" onchange="const el = document.getElementById('other-purpose-box'); this.value === 'Others' ? el.classList.remove('hidden') : el.classList.add('hidden')" class="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-xs text-white outline-none focus:border-indigo-500">
+								<option value="Next installment request">Next installment request</option>
+								<option value="Random request Payment">Random request Payment</option>
+								<option value="Others">Others</option>
+							</select>
+						</div>
+					</div>
+
+					<div id="other-purpose-box" class="mt-4 hidden animate-slide-up">
+						<label class="text-[8px] font-black text-indigo-400 uppercase ml-1">Specify Purpose</label>
+						<input id="new-pay-purpose-custom" type="text" placeholder="Type purpose here..." class="w-full mt-1 px-4 py-2.5 bg-slate-950 border border-indigo-500/30 rounded-xl text-xs text-white outline-none">
 					</div>
 					<button onclick="createNewPaymentEntry()" class="mt-4 w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-indigo-500/20">
 						Create Installment Request
