@@ -2050,6 +2050,20 @@
 
 		async function openPaymentModal(projectId) {
 			const modal = document.getElementById('payment-modal');
+			
+			// --- FIX STARTS HERE: RESET GATEWAY STATE ---
+			const tableElement = document.getElementById('payment-history-rows').closest('table');
+			const gatewayContainer = document.getElementById('gateway-container');
+			
+			// 1. Always show the table again
+			if (tableElement) tableElement.classList.remove('hidden');
+			
+			// 2. Always hide the QR/Gateway container if it exists
+			if (gatewayContainer) gatewayContainer.classList.add('hidden');
+
+			modal.dataset.projectId = projectId;
+			modal.classList.remove('hidden');
+			
 			document.getElementById('modal-project-id').innerHTML = `
 				<div class="flex justify-between items-center w-full pr-4">
 					<span>Project ID: ${projectId}</span>
@@ -2207,24 +2221,162 @@
 		
 		//TODO Razorpay functionality pending
 		
-		function processPayment(paymentId, amount) {
+		async function processPayment(paymentId, amount) {
+			const { data: payData, error } = await sb.from('payments')
+				.select('payment_mode, project_id')
+				.eq('id', paymentId).single();
+
+			if (error) return alert("Error fetching payment details");
+
+			const mode = payData.payment_mode || 'Cash';
 			
-			const paymentBoard = document.getElementById('payment-modal');
-			if (paymentBoard) {
-				paymentBoard.classList.add('hidden');
+			// Instead of opening 'lead-modal', we hide the history table 
+			// and show the payment gateway in the same space.
+			const historySection = document.getElementById('payment-history-rows').closest('table');
+			const adminSection = document.getElementById('admin-payment-section');
+			const modalTitle = document.getElementById('modal-project-id');
+
+			// Hide background elements to make room for the Gateway
+			if(adminSection) adminSection.classList.add('hidden');
+			historySection.classList.add('hidden');
+			
+			// Change title to reflect Gateway mode
+			modalTitle.innerHTML = `
+				<div class="flex items-center gap-3 text-indigo-400">
+					<button onclick="openPaymentModal('${payData.project_id}')" class="p-1 hover:bg-white/10 rounded-lg transition-all">
+						<i data-lucide="arrow-left" class="w-4 h-4"></i>
+					</button>
+					<span class="text-xs font-black uppercase tracking-widest text-white">Secure Gateway: ${mode}</span>
+				</div>`;
+
+			// Create a container for the Gateway if it doesn't exist
+			let gatewayContainer = document.getElementById('gateway-container');
+			if (!gatewayContainer) {
+				gatewayContainer = document.createElement('div');
+				gatewayContainer.id = 'gateway-container';
+				historySection.parentNode.insertBefore(gatewayContainer, historySection);
+			}
+			gatewayContainer.classList.remove('hidden');
+
+			if (mode === 'UPI') {
+				renderUPIFlow(paymentId, amount, payData.project_id, gatewayContainer);
+			} else if (mode === 'Net Banking') {
+				renderNetBankingFlow(paymentId, amount, payData.project_id, gatewayContainer);
+			} else {
+				renderCashFlow(paymentId, gatewayContainer);
 			}
 			
-			// 1. Show the custom popup
-			const popup = document.getElementById('offline-payment-modal');
-			popup.classList.remove('hidden');
-			
-			// 2. Initialize icons inside the popup (Lucide)
-			if (typeof lucide !== 'undefined') {
-				lucide.createIcons();
+			if(window.lucide) lucide.createIcons();
+		}
+		
+		function renderUPIFlow(id, amt, pId, container) {
+			const vpa = "7378332802@ybl"; 
+			const upiUrl = `upi://pay?pa=${vpa}&pn=NivasKunj&am=${amt}&cu=INR`;
+			const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiUrl)}`;
+
+			container.innerHTML = `
+				<div class="py-10 text-center animate-in fade-in zoom-in duration-300">
+					<h3 class="text-xs font-black text-slate-500 uppercase tracking-[0.2em] mb-6">Scan QR to Pay</h3>
+					
+					<div class="bg-white p-4 rounded-3xl inline-block mb-6 shadow-2xl shadow-indigo-500/20 border-4 border-indigo-500/10">
+						<img src="${qrUrl}" class="w-56 h-56 rounded-lg">
+					</div>
+
+					<div class="max-w-xs mx-auto bg-slate-900/50 border border-white/5 rounded-2xl p-4 mb-8">
+						<p class="text-[10px] text-slate-500 uppercase font-black mb-1">Amount Due</p>
+						<p class="text-2xl font-black text-white">₹${amt.toLocaleString('en-IN')}</p>
+					</div>
+
+					<div class="flex flex-col gap-3 max-w-xs mx-auto">
+						<button onclick="verifyPayment('${id}', '${pId}')" 
+							class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[10px] tracking-widest py-4 rounded-xl transition-all shadow-lg shadow-indigo-600/20">
+							Verify My Payment
+						</button>
+						<button onclick="openPaymentModal('${pId}')" class="text-slate-500 hover:text-white text-[10px] font-bold uppercase tracking-widest transition-all">
+							Cancel & Go Back
+						</button>
+					</div>
+				</div>
+			`;
+		}
+		
+		// --- NET BANKING FLOW ---
+		function renderNetBankingFlow(id, amt, pId, container) {
+			container.innerHTML = `
+				<div class="py-6 px-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+					<h3 class="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-6 text-center">Bank Transfer Details</h3>
+					
+					<div class="space-y-3 mb-8">
+						<div class="bg-slate-950/80 p-4 rounded-xl border border-white/5">
+							<p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Beneficiary Name</p>
+							<p class="text-xs text-white font-bold uppercase">Nivas Kunj Construction</p>
+						</div>
+						<div class="bg-slate-950/80 p-4 rounded-xl border border-white/5 relative group">
+							<p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Account Number</p>
+							<p class="text-sm text-white font-mono font-bold tracking-wider">9876543210123</p>
+							<span class="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] text-indigo-500 font-bold uppercase opacity-0 group-hover:opacity-100 transition-all">Click to Copy</span>
+						</div>
+						<div class="grid grid-cols-2 gap-3">
+							<div class="bg-slate-950/80 p-4 rounded-xl border border-white/5">
+								<p class="text-[8px] text-slate-500 uppercase font-bold mb-1">IFSC Code</p>
+								<p class="text-xs text-white font-bold">HDFC0001234</p>
+							</div>
+							<div class="bg-slate-950/80 p-4 rounded-xl border border-white/5">
+								<p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Bank Name</p>
+								<p class="text-xs text-white font-bold">HDFC Bank</p>
+							</div>
+						</div>
+					</div>
+
+					<div class="bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-xl mb-8 text-center">
+						<p class="text-[10px] text-indigo-300 leading-relaxed font-medium">
+							Transfer <span class="text-white font-black">₹${amt.toLocaleString('en-IN')}</span> via IMPS/NEFT. 
+							After transfer, click the button below.
+						</p>
+					</div>
+
+					<button onclick="verifyPayment('${id}', '${pId}', 5)" 
+						class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[10px] tracking-widest py-4 rounded-xl transition-all shadow-lg shadow-indigo-600/20">
+						I Have Sent the Money
+					</button>
+				</div>
+			`;
+		}
+
+		// --- CASH FLOW ---
+		function renderCashFlow(id, container) {
+			container.innerHTML = `
+				<div class="py-12 px-6 text-center animate-in fade-in zoom-in duration-300">
+					<div class="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6 text-amber-500 border border-amber-500/20">
+						<i data-lucide="banknote" class="w-8 h-8"></i>
+					</div>
+					<h3 class="text-sm font-black text-white uppercase tracking-widest mb-4">Cash Payment Instruction</h3>
+					<p class="text-slate-400 text-[11px] leading-relaxed mb-10 max-w-[280px] mx-auto">
+						Please hand over the amount to your assigned Site Supervisor or visit our main office. 
+						<br><br>
+						Once handed over, the Admin will manually verify and update your digital receipt here.
+					</p>
+					<button onclick="openPaymentModal(document.getElementById('payment-modal').dataset.projectId)" 
+						class="w-full bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest py-4 rounded-xl transition-all">
+						Close & Go Back
+					</button>
+				</div>
+			`;
+			if(window.lucide) lucide.createIcons();
+		}
+		
+		async function verifyPayment(paymentId, projectId, customStatus = 2) {
+			const { error } = await sb.from('payments')
+				.update({ payment_status: customStatus })
+				.eq('id', paymentId);
+
+			if (error) {
+				alert("Error: " + error.message);
+			} else {
+				alert("Payment update sent to admin.");
+				document.getElementById('lead-modal').classList.add('hidden'); // Fixed ID
+				openPaymentModal(projectId); 
 			}
-			
-			// Log the intent for debugging
-			console.log(`User initiated payment request for ID: ${paymentId} (Amount: ₹${amount})`);
 		}
 		
 		async function generatePaymentPDF(activeProjectId) {
