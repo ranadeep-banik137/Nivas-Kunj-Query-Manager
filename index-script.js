@@ -94,14 +94,18 @@ document.getElementById('mainBtn').onclick = async () => {
             setTimeout(() => toggleMode('login'), 2000);
         }
     } else {
-        const {
-            error
-        } = await sb.auth.signInWithPassword({
+        const res = await sb.auth.signInWithPassword({
             email,
             password
         });
-        if (error) status.innerText = "❌ Login Failed";
-        else window.location.href = 'portal.html';
+        if (res.error) {
+			status.innerText = "❌ Login Failed";
+		}
+        else {
+			await createServerSession(res.data.user.id); 
+			console.log("Server session established.");
+			window.location.href = 'portal.html';
+		}
     }
 };
 
@@ -180,3 +184,17 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+
+async function createServerSession(userId) {
+    const sessionDurationHours = 2; // Set your desired limit
+    const expiryDate = new Date();
+    expiryDate.setHours(expiryDate.getHours() + sessionDurationHours);
+
+    const res = await sb
+        .from('user_sessions')
+        .upsert({ 
+            user_id: userId, 
+            expires_at: expiryDate.toISOString() 
+        }, { onConflict: 'user_id' }); // Overwrite existing session for this user
+    if (res.error) console.error("Session tracking failed:", error);
+}

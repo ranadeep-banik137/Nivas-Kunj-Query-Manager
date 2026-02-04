@@ -27,6 +27,38 @@ Chart.register(ChartZoom);
 				}
 			});
 			
+			// 3. ADD THIS: Server-Side Expiry Check (The "Laptop Sleep" Fix)
+			const { data: sessionData, error: sessionError } = await sb
+				.from('user_sessions')
+				.select('expires_at')
+				.eq('user_id', user.id)
+				.single();
+
+			if (sessionError || !sessionData) {
+				console.error("No server session record found.");
+				handleLogout();
+				return;
+			}
+
+			const now = new Date();
+			const expiryTime = new Date(sessionData.expires_at);
+
+			if (now > expiryTime) {
+				//alert("Session Expired. Please login again.");
+				showExpiryPopup();
+				//handleLogout();
+				return;
+			}
+
+			// 4. Background Heartbeat (Optional but recommended)
+			// Checks every 2 minutes if the session was killed while the tab was open
+			setInterval(async () => {
+				const { data } = await sb.from('user_sessions').select('expires_at').eq('user_id', user.id).single();
+				if (data && new Date() > new Date(data.expires_at)) {
+					handleLogout();
+				}
+			}, 120000);
+			
 			window.userSession = {
 				id: user.id,
 				email: user.email
@@ -102,6 +134,27 @@ Chart.register(ChartZoom);
 			allLeads.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 			filteredLeads = [...allLeads]; // CRITICAL: Initialize this so renderTable works
 			renderTable(); 
+		}
+		
+		// Function to show the custom popup
+		function showExpiryPopup() {
+			const modal = document.getElementById('expiry-modal');
+			const content = document.getElementById('expiry-content');
+			const loader = document.getElementById('loader');
+			const portal = document.getElementById('portal-container'); // Your main wrapper
+
+			// 1. Hide the "Authenticating..." loader
+			if (loader) loader.style.display = 'none';
+			
+			// 2. Hide the main portal content (optional, for extra security)
+			if (portal) portal.classList.add('hidden');
+			
+			modal.classList.remove('opacity-0', 'pointer-events-none');
+			content.classList.remove('scale-95');
+			content.classList.add('scale-100');
+			
+			// Refresh icons if you are using Lucide
+			if (window.lucide) lucide.createIcons();
 		}
 
 		function handleSearch() {
