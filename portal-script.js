@@ -44,8 +44,9 @@ Chart.register(ChartZoom);
 			const expiryTime = new Date(sessionData.expires_at);
 
 			if (now > expiryTime) {
-				alert("Session Expired. Please login again.");
-				handleLogout();
+				//alert("Session Expired. Please login again.");
+				showExpiryPopup();
+				//handleLogout();
 				return;
 			}
 
@@ -133,6 +134,27 @@ Chart.register(ChartZoom);
 			allLeads.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 			filteredLeads = [...allLeads]; // CRITICAL: Initialize this so renderTable works
 			renderTable(); 
+		}
+		
+		// Function to show the custom popup
+		function showExpiryPopup() {
+			const modal = document.getElementById('expiry-modal');
+			const content = document.getElementById('expiry-content');
+			const loader = document.getElementById('loader');
+			const portal = document.getElementById('portal-container'); // Your main wrapper
+
+			// 1. Hide the "Authenticating..." loader
+			if (loader) loader.style.display = 'none';
+			
+			// 2. Hide the main portal content (optional, for extra security)
+			if (portal) portal.classList.add('hidden');
+			
+			modal.classList.remove('opacity-0', 'pointer-events-none');
+			content.classList.remove('scale-95');
+			content.classList.add('scale-100');
+			
+			// Refresh icons if you are using Lucide
+			if (window.lucide) lucide.createIcons();
 		}
 
 		function handleSearch() {
