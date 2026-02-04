@@ -27,6 +27,37 @@ Chart.register(ChartZoom);
 				}
 			});
 			
+			// 3. ADD THIS: Server-Side Expiry Check (The "Laptop Sleep" Fix)
+			const { data: sessionData, error: sessionError } = await sb
+				.from('user_sessions')
+				.select('expires_at')
+				.eq('user_id', user.id)
+				.single();
+
+			if (sessionError || !sessionData) {
+				console.error("No server session record found.");
+				handleLogout();
+				return;
+			}
+
+			const now = new Date();
+			const expiryTime = new Date(sessionData.expires_at);
+
+			if (now > expiryTime) {
+				alert("Session Expired. Please login again.");
+				handleLogout();
+				return;
+			}
+
+			// 4. Background Heartbeat (Optional but recommended)
+			// Checks every 2 minutes if the session was killed while the tab was open
+			setInterval(async () => {
+				const { data } = await sb.from('user_sessions').select('expires_at').eq('user_id', user.id).single();
+				if (data && new Date() > new Date(data.expires_at)) {
+					handleLogout();
+				}
+			}, 120000);
+			
 			window.userSession = {
 				id: user.id,
 				email: user.email
