@@ -2841,7 +2841,7 @@ Chart.register(ChartZoom);
 					<td class="p-4 text-center text-slate-300 font-bold">₹${item.cost_per_item.toLocaleString()}</td>
 					<td class="p-4 text-right font-black text-indigo-400">₹${item.total_cost.toLocaleString()}</td>
 					<td class="p-4 text-center">
-						<button onclick="generatePDFInvoice('${item.id}')" class="p-2 bg-white/5 text-slate-400 hover:text-white hover:bg-indigo-600 rounded-lg transition-all shadow-sm">
+						<button onclick="generatePDFInvoice('${item.project_id}')" class="p-2 bg-white/5 text-slate-400 hover:text-white hover:bg-indigo-600 rounded-lg transition-all shadow-sm">
 							<i data-lucide="download-cloud" class="w-3.5 h-3.5"></i>
 						</button>
 					</td>
@@ -2850,57 +2850,122 @@ Chart.register(ChartZoom);
 			lucide.createIcons();
 		}
 
-		// 3. Invoice PDF Generation
-		async function generatePDFInvoice(itemId) {
-			const { data: item } = await sb.from('project_artifacts').select('*').eq('id', itemId).single();
-			if (!item) return;
+		async function generatePDFInvoice(projectId) {
+			const printArea = document.getElementById('printable-area'); // Matches your portal.html ID
+			
+			// 1. Fetch data from your specific Supabase tables
+			const [projRes, artifactsRes] = await Promise.all([
+				sb.from('projects').select('*').eq('id', projectId).single(),
+				sb.from('project_artifacts').select('*').eq('project_id', projectId)
+			]);
 
-			const printWindow = window.open('', '_blank');
-			printWindow.document.write(`
-				<html>
-					<head>
-						<title>Invoice_${item.item_name}</title>
-						<script src="https://cdn.tailwindcss.com"></script>
-					</head>
-					<body class="p-12 bg-white text-slate-900 font-sans">
-						<div class="max-w-3xl mx-auto border-2 border-slate-100 p-12 rounded-3xl">
-							<div class="flex justify-between items-start mb-16">
-								<div>
-									<h1 class="text-4xl font-black tracking-tighter uppercase">Nivas Kunj</h1>
-									<p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2">Interior Design Solutions</p>
-								</div>
-								<div class="text-right">
-									<h2 class="text-sm font-black uppercase text-indigo-600">Official Invoice</h2>
-									<p class="text-[10px] text-slate-400 mt-1">Date: ${new Date(item.created_at).toLocaleDateString()}</p>
-								</div>
-							</div>
+			if (projRes.error) return alert("Error fetching project data.");
 
-							<div class="mb-12">
-								<label class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Item Description</label>
-								<h3 class="text-xl font-bold mt-1">${item.item_name}</h3>
-								<p class="text-sm text-slate-500 mt-2">${item.details || 'General project requirement'}</p>
-							</div>
+			const project = projRes.data;
+			const artifacts = artifactsRes.data || [];
+			
+			// Fetch Client Details using the enquiry_id link found in your code
+			const { data: customer } = await sb.from('customer_details')
+				.select('*')
+				.eq('enquiry_id', project.enquiry_id)
+				.single();
 
-							<table class="w-full mb-16">
-								<tr class="border-b-2 border-slate-100 text-[10px] uppercase font-black text-slate-400">
-									<th class="py-4 text-left">Quantity</th>
-									<th class="py-4 text-center">Unit Price</th>
-									<th class="py-4 text-right">Total Amount</th>
+			const grandTotal = artifacts.reduce((sum, item) => sum + (item.quantity * item.cost_per_item), 0);
+
+			// 2. Build the Layout using your specific styling (Indigo/Slate)
+			printArea.innerHTML = `
+				<div style="padding: 60px; font-family: 'Inter', sans-serif; color: #1e293b; background: white; min-height: 100vh;">
+					<div style="display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #f1f5f9; padding-bottom: 30px; margin-bottom: 40px;">
+						<div>
+							<img id="inv-logo" src="https://github.com/ranadeep-banik137/NivasKunjInteriors/blob/main/logo%20transparent%20PNG.png?raw=true" style="height: 50px; margin-bottom: 10px;">
+							<h2 style="margin: 0; color: #4f46e5; font-weight: 900; letter-spacing: -1px;">NIVAS KUNJ</h2>
+							<p style="font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 2px; font-weight: 700;">Luxury Interiors & Architecture</p>
+						</div>
+						<div style="text-align: right;">
+							<h1 style="font-size: 32px; font-weight: 900; margin: 0; color: #f1f5f9; letter-spacing: 4px;">INVOICE</h1>
+							<p style="font-size: 11px; font-weight: 700; color: #1e293b; margin-top: 8px;">REF: INV-${projectId.slice(0, 8).toUpperCase()}</p>
+							<p style="font-size: 11px; color: #64748b;">DATE: ${new Date().toLocaleDateString('en-IN')}</p>
+						</div>
+					</div>
+
+					<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px;">
+						<div>
+							<h4 style="font-size: 9px; font-weight: 900; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px; letter-spacing: 1px;">BILL TO</h4>
+							<p style="font-size: 16px; font-weight: 800; margin: 0; color: #1e1b4b;">${customer?.customer_name || 'Valued Client'}</p>
+							<p style="font-size: 12px; color: #475569; margin: 4px 0;">${customer?.email_id || project.client_email}</p>
+							<p style="font-size: 11px; color: #64748b; line-height: 1.4;">${customer?.address || 'Site Address Linked to Project'}</p>
+						</div>
+						<div style="background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0;">
+							<h4 style="font-size: 9px; font-weight: 900; text-transform: uppercase; color: #64748b; margin-bottom: 6px;">PROJECT REFERENCE</h4>
+							<p style="font-size: 14px; font-weight: 800; color: #1e1b4b; margin: 0;">${project.project_name}</p>
+							<p style="font-size: 10px; color: #4f46e5; font-weight: 800; margin-top: 4px; text-transform: uppercase;">STATUS: ${project.current_phase}</p>
+						</div>
+					</div>
+
+					<table style="width: 100%; border-collapse: collapse; margin-bottom: 40px;">
+						<thead>
+							<tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+								<th style="padding: 12px; text-align: left; font-size: 9px; font-weight: 900; color: #64748b; text-transform: uppercase;">SL</th>
+								<th style="padding: 12px; text-align: left; font-size: 9px; font-weight: 900; color: #64748b; text-transform: uppercase;">Service Description</th>
+								<th style="padding: 12px; text-align: center; font-size: 9px; font-weight: 900; color: #64748b; text-transform: uppercase;">Qty</th>
+								<th style="padding: 12px; text-align: right; font-size: 9px; font-weight: 900; color: #64748b; text-transform: uppercase;">Rate</th>
+								<th style="padding: 12px; text-align: right; font-size: 9px; font-weight: 900; color: #64748b; text-transform: uppercase;">Total</th>
+							</tr>
+						</thead>
+						<tbody>
+							${artifacts.map((item, index) => `
+								<tr style="border-bottom: 1px solid #f1f5f9;">
+									<td style="padding: 18px 12px; font-size: 11px; color: #64748b;">${index + 1}</td>
+									<td style="padding: 18px 12px;">
+										<p style="font-size: 13px; font-weight: 700; color: #1e1b4b; margin: 0;">${item.item_name}</p>
+										<p style="font-size: 10px; color: #94a3b8; margin-top: 4px;">${item.details || ''}</p>
+									</td>
+									<td style="padding: 18px 12px; text-align: center; font-size: 12px; font-weight: 600;">${item.quantity}</td>
+									<td style="padding: 18px 12px; text-align: right; font-size: 12px; color: #475569;">₹${item.cost_per_item.toLocaleString('en-IN')}</td>
+									<td style="padding: 18px 12px; text-align: right; font-size: 13px; font-weight: 800; color: #1e1b4b;">₹${(item.quantity * item.cost_per_item).toLocaleString('en-IN')}</td>
 								</tr>
-								<tr>
-									<td class="py-6 font-bold text-lg">${item.quantity}</td>
-									<td class="py-6 text-center font-bold text-lg">₹${item.cost_per_item.toLocaleString()}</td>
-									<td class="py-6 text-right font-black text-2xl text-indigo-600">₹${item.total_cost.toLocaleString()}</td>
-								</tr>
-							</table>
+							`).join('')}
+						</tbody>
+					</table>
 
-							<div class="pt-10 border-t border-dashed border-slate-200 text-center">
-								<p class="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em]">Thank you for choosing Nivas Kunj</p>
+					<div style="display: flex; justify-content: space-between; align-items: end; margin-top: 20px;">
+						<div style="max-width: 320px; font-size: 10px; color: #94a3b8; line-height: 1.6;">
+							<h4 style="color: #1e293b; font-weight: 900; text-transform: uppercase; font-size: 9px; margin-bottom: 8px;">Terms & Notes</h4>
+							<p>1. Please include Invoice Ref in all bank transfers.<br>
+							   2. This is a computer-generated document for client approval.</p>
+						</div>
+						<div style="min-width: 280px;">
+							<div style="display: flex; justify-content: space-between; padding: 15px 0; border-top: 2px solid #4f46e5;">
+								<span style="font-size: 14px; font-weight: 800; color: #1e1b4b;">Amount Payable:</span>
+								<span style="font-size: 20px; font-weight: 900; color: #4f46e5;">₹${grandTotal.toLocaleString('en-IN')}</span>
+							</div>
+							<div style="margin-top: 40px; text-align: center;">
+								<img id="inv-sig" src="https://github.com/ranadeep-banik137/Nivas-Kunj-Query-Manager/blob/main/sig.png?raw=true" style="height: 55px; margin-bottom: 8px;">
+								<div style="border-top: 1px solid #e2e8f0; padding-top: 8px;">
+									<p style="font-size: 11px; font-weight: 800; color: #1e1b4b; margin: 0;">Authorized Signatory</p>
+									<p style="font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Nivas Kunj Management</p>
+								</div>
 							</div>
 						</div>
-						<script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); }</script>
-					</body>
-				</html>
-			`);
-			printWindow.document.close();
+					</div>
+				</div>
+			`;
+
+			// 3. Image Loading Safety Check (Logic from your generatePaymentPDF)
+			const logoImg = document.getElementById('inv-logo');
+			const sigImg = document.getElementById('inv-sig');
+			
+			const waitImg = (img) => new Promise(res => {
+				if (!img) return res();
+				if (img.complete) res();
+				else { img.onload = res; img.onerror = res; }
+			});
+
+			await Promise.all([waitImg(logoImg), waitImg(sigImg)]);
+			
+			// 4. Trigger Native Print
+			window.print();
+
+			// 5. Clear print area to keep DOM clean
+			printArea.innerHTML = '';
 		}
