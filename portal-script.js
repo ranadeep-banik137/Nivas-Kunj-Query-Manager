@@ -898,7 +898,40 @@ Chart.register(ChartZoom);
 							<i data-lucide="save" class="w-3.5 h-3.5"></i> Update Project Details
 						</button>
 					</div>
+					
+					<div id="artifacts-section" class="space-y-6 pt-10 border-t border-white/10 mt-10">
+						<div class="flex items-center justify-between">
+							<div>
+								<h3 class="text-sm font-black text-white uppercase tracking-tight">Project Artifacts</h3>
+								<p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Estimations and Periodic Billing</p>
+							</div>
+							
+							${window.currentUserProfile?.is_admin ? `
+								<button onclick="addArtifactItem('${projectId}')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase transition-all shadow-lg shadow-indigo-500/20">
+									+ Add New Item
+								</button>
+							` : ''}
+						</div>
 
+						<div class="glass-panel rounded-2xl border border-white/5 overflow-hidden">
+							<div class="overflow-x-auto custom-scrollbar">
+								<table class="w-full text-left text-[10px]">
+									<thead class="bg-white/5 text-slate-400 font-black uppercase tracking-widest">
+										<tr>
+											<th class="p-4">Item & Details</th>
+											<th class="p-4 text-center">Qty</th>
+											<th class="p-4 text-center">Unit Cost</th>
+											<th class="p-4 text-right">Total</th>
+											<th class="p-4 text-center">Invoice</th>
+										</tr>
+									</thead>
+									<tbody id="artifacts-tbody-${projectId}">
+										</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+					
 					<div class="mb-6 space-y-3">
 						<h4 class="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em] px-2">Customer Contacts</h4>
 						${(customerRes.data || []).map(cust => `
@@ -925,7 +958,9 @@ Chart.register(ChartZoom);
 					<h1 class="text-4xl font-black text-white tracking-tighter uppercase">${proj.project_name}</h1>
 					<p class="text-indigo-400 font-bold text-[10px] uppercase tracking-widest mt-1">${proj.client_email}</p>
 				`;
-
+				// Initial Fetch
+				renderArtifacts(projectId);
+				
 				// RENDER FILTERED ASSETS (Excludes the Invoice)
 				renderWorkspaceAssets(assetsOnly);
 				await loadWorkspaceChat(activeProjectId);
@@ -2687,4 +2722,115 @@ Chart.register(ChartZoom);
 			const { error } = await sb.from('profiles').delete().eq('id', id);
 			if (error) alert(error.message);
 			else fetchUsers();
+		}
+		
+		// 1. Fetch and Display (Called automatically when workspace opens)
+		async function renderArtifacts(projectId) {
+			const tbody = document.getElementById(`artifacts-tbody-${projectId}`);
+			if (!tbody) return;
+
+			const { data, error } = await sb.from('project_artifacts')
+				.select('*')
+				.eq('project_id', projectId)
+				.order('created_at', { ascending: true });
+
+			if (error || !data.length) {
+				tbody.innerHTML = `<tr><td colspan="5" class="p-10 text-center text-slate-600 text-[9px] font-black uppercase tracking-widest">No artifacts found</td></tr>`;
+				return;
+			}
+
+			tbody.innerHTML = data.map(item => `
+				<tr class="border-t border-white/5 hover:bg-white/5 transition-colors">
+					<td class="p-4">
+						<div class="font-bold text-white text-[11px]">${item.item_name}</div>
+						<div class="text-[8px] text-slate-500 uppercase mt-0.5">${item.details || ''}</div>
+					</td>
+					<td class="p-4 text-center text-slate-300 font-bold">${item.quantity}</td>
+					<td class="p-4 text-center text-slate-300 font-bold">₹${item.cost_per_item.toLocaleString()}</td>
+					<td class="p-4 text-right font-black text-indigo-400">₹${item.total_cost.toLocaleString()}</td>
+					<td class="p-4 text-center">
+						<button onclick="generatePDFInvoice('${item.id}')" class="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg hover:bg-indigo-600 hover:text-white transition-all">
+							<i data-lucide="download-cloud" class="w-3.5 h-3.5"></i>
+						</button>
+					</td>
+				</tr>
+			`).join('');
+			lucide.createIcons();
+		}
+
+		// 2. Create New Item (Admin Only)
+		async function addArtifactItem(projectId) {
+			if (!window.currentUserProfile?.is_admin) return alert("Unauthorized");
+
+			const name = prompt("Item Name (e.g., Material Estimation):");
+			if (!name) return;
+			const details = prompt("Description/Scope:");
+			const qty = parseFloat(prompt("Quantity:", "1")) || 1;
+			const cost = parseFloat(prompt("Cost Per Item (₹):", "0")) || 0;
+
+			const { error } = await sb.from('project_artifacts').insert([{
+				project_id: projectId,
+				item_name: name,
+				details: details,
+				quantity: qty,
+				cost_per_item: cost
+			}]);
+
+			if (error) alert("Sync Error: " + error.message);
+			else renderArtifacts(projectId);
+		}
+
+		// 3. Invoice PDF Generation
+		async function generatePDFInvoice(itemId) {
+			const { data: item } = await sb.from('project_artifacts').select('*').eq('id', itemId).single();
+			if (!item) return;
+
+			const printWindow = window.open('', '_blank');
+			printWindow.document.write(`
+				<html>
+					<head>
+						<title>Invoice_${item.item_name}</title>
+						<script src="https://cdn.tailwindcss.com"></script>
+					</head>
+					<body class="p-12 bg-white text-slate-900 font-sans">
+						<div class="max-w-3xl mx-auto border-2 border-slate-100 p-12 rounded-3xl">
+							<div class="flex justify-between items-start mb-16">
+								<div>
+									<h1 class="text-4xl font-black tracking-tighter uppercase">Nivas Kunj</h1>
+									<p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2">Interior Design Solutions</p>
+								</div>
+								<div class="text-right">
+									<h2 class="text-sm font-black uppercase text-indigo-600">Official Invoice</h2>
+									<p class="text-[10px] text-slate-400 mt-1">Date: ${new Date(item.created_at).toLocaleDateString()}</p>
+								</div>
+							</div>
+
+							<div class="mb-12">
+								<label class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Item Description</label>
+								<h3 class="text-xl font-bold mt-1">${item.item_name}</h3>
+								<p class="text-sm text-slate-500 mt-2">${item.details || 'General project requirement'}</p>
+							</div>
+
+							<table class="w-full mb-16">
+								<tr class="border-b-2 border-slate-100 text-[10px] uppercase font-black text-slate-400">
+									<th class="py-4 text-left">Quantity</th>
+									<th class="py-4 text-center">Unit Price</th>
+									<th class="py-4 text-right">Total Amount</th>
+								</tr>
+								<tr>
+									<td class="py-6 font-bold text-lg">${item.quantity}</td>
+									<td class="py-6 text-center font-bold text-lg">₹${item.cost_per_item.toLocaleString()}</td>
+									<td class="py-6 text-right font-black text-2xl text-indigo-600">₹${item.total_cost.toLocaleString()}</td>
+								</tr>
+							</table>
+
+							<div class="pt-10 border-t border-dashed border-slate-200 text-center">
+								<p class="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em]">Thank you for choosing Nivas Kunj</p>
+							</div>
+						</div>
+						<script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); }</script>
+					</body>
+				</html>
+			`);
+			printWindow.document.close();
 		}
