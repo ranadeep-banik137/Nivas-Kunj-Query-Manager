@@ -899,35 +899,68 @@ Chart.register(ChartZoom);
 						</button>
 					</div>
 					
-					<div id="artifacts-section" class="space-y-6 pt-10 border-t border-white/10 mt-10">
-						<div class="flex items-center justify-between">
+					<div id="project-artifacts-container" class="glass-panel rounded-3xl border border-white/10 overflow-hidden mt-8">
+						<div class="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
 							<div>
 								<h3 class="text-sm font-black text-white uppercase tracking-tight">Project Artifacts</h3>
-								<p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Estimations and Periodic Billing</p>
+								<p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Itemized Estimation & Billing</p>
 							</div>
-							
 							${window.currentUserProfile?.is_admin ? `
-								<button onclick="addArtifactItem('${projectId}')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase transition-all shadow-lg shadow-indigo-500/20">
+								<button onclick="openArtifactModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase transition-all shadow-lg shadow-indigo-500/20 active:scale-95">
 									+ Add New Item
 								</button>
 							` : ''}
 						</div>
 
-						<div class="glass-panel rounded-2xl border border-white/5 overflow-hidden">
-							<div class="overflow-x-auto custom-scrollbar">
-								<table class="w-full text-left text-[10px]">
-									<thead class="bg-white/5 text-slate-400 font-black uppercase tracking-widest">
-										<tr>
-											<th class="p-4">Item & Details</th>
-											<th class="p-4 text-center">Qty</th>
-											<th class="p-4 text-center">Unit Cost</th>
-											<th class="p-4 text-right">Total</th>
-											<th class="p-4 text-center">Invoice</th>
-										</tr>
-									</thead>
-									<tbody id="artifacts-tbody-${projectId}">
-										</tbody>
-								</table>
+						<div class="overflow-x-auto custom-scrollbar">
+							<table class="w-full text-left text-[10px] min-w-[700px]">
+								<thead class="bg-slate-950/50 text-slate-400 font-black uppercase tracking-widest">
+									<tr>
+										<th class="p-4 sticky left-0 bg-slate-900/90 backdrop-blur-md z-10 border-r border-white/5">Item Details</th>
+										<th class="p-4 text-center">Qty</th>
+										<th class="p-4 text-center">Unit Cost</th>
+										<th class="p-4 text-right">Total</th>
+										<th class="p-4 text-center">Action</th>
+									</tr>
+								</thead>
+								<tbody id="artifacts-tbody-${projectId}">
+									</tbody>
+							</table>
+						</div>
+					</div>
+
+					<div id="artifact-modal" class="fixed inset-0 z-[110] flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+						<div class="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onclick="closeArtifactModal()"></div>
+						<div class="relative bg-slate-900 border border-white/10 w-full max-w-md rounded-3xl p-8 shadow-2xl transform scale-95 transition-transform duration-300" id="artifact-modal-content">
+							<div class="flex items-center justify-between mb-6">
+								<h4 class="text-sm font-black text-white uppercase tracking-widest">New Artifact</h4>
+								<button onclick="closeArtifactModal()" class="text-slate-500 hover:text-white transition-colors">
+									<i data-lucide="x" class="w-5 h-5"></i>
+								</button>
+							</div>
+							
+							<div class="space-y-4">
+								<div class="space-y-1">
+									<label class="text-[8px] font-black uppercase text-slate-500 ml-1">Item Name</label>
+									<input type="text" id="art-name" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:border-indigo-500 outline-none transition-colors">
+								</div>
+								<div class="space-y-1">
+									<label class="text-[8px] font-black uppercase text-slate-500 ml-1">Details</label>
+									<textarea id="art-details" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:border-indigo-500 outline-none min-h-[80px] transition-colors"></textarea>
+								</div>
+								<div class="grid grid-cols-2 gap-4">
+									<div class="space-y-1">
+										<label class="text-[8px] font-black uppercase text-slate-500 ml-1">Quantity</label>
+										<input type="number" id="art-qty" value="1" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:border-indigo-500 outline-none">
+									</div>
+									<div class="space-y-1">
+										<label class="text-[8px] font-black uppercase text-slate-500 ml-1">Unit Price (₹)</label>
+										<input type="number" id="art-cost" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:border-indigo-500 outline-none">
+									</div>
+								</div>
+								<button id="save-art-btn" onclick="saveArtifact('${projectId}')" class="w-full bg-indigo-600 text-white h-12 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-500/20 mt-4">
+									Confirm & Add
+								</button>
 							</div>
 						</div>
 					</div>
@@ -2724,7 +2757,66 @@ Chart.register(ChartZoom);
 			else fetchUsers();
 		}
 		
-		// 1. Fetch and Display (Called automatically when workspace opens)
+		// 1. Modal Toggle Functions
+		function openArtifactModal() {
+			const modal = document.getElementById('artifact-modal');
+			const content = document.getElementById('artifact-modal-content');
+			modal.classList.remove('opacity-0', 'pointer-events-none');
+			content.classList.remove('scale-95');
+			lucide.createIcons();
+		}
+
+		function closeArtifactModal() {
+			const modal = document.getElementById('artifact-modal');
+			const content = document.getElementById('artifact-modal-content');
+			modal.classList.add('opacity-0', 'pointer-events-none');
+			content.classList.add('scale-95');
+			// Clear inputs
+			['art-name', 'art-details', 'art-cost'].forEach(id => document.getElementById(id).value = '');
+			document.getElementById('art-qty').value = '1';
+		}
+
+		// 2. Save Artifact & Success Feedback
+		async function saveArtifact(projectId) {
+			const btn = document.getElementById('save-art-btn');
+			const name = document.getElementById('art-name').value;
+			const details = document.getElementById('art-details').value;
+			const qty = parseFloat(document.getElementById('art-qty').value) || 0;
+			const cost = parseFloat(document.getElementById('art-cost').value) || 0;
+
+			if (!name || cost <= 0) return;
+
+			btn.disabled = true;
+			btn.innerHTML = '<span class="animate-pulse">Processing...</span>';
+
+			const { error } = await sb.from('project_artifacts').insert([{
+				project_id: projectId,
+				item_name: name,
+				details: details,
+				quantity: qty,
+				cost_per_item: cost
+			}]);
+
+			if (!error) {
+				btn.innerHTML = '✓ Success!';
+				btn.classList.replace('bg-indigo-600', 'bg-emerald-600');
+				
+				setTimeout(() => {
+					closeArtifactModal();
+					renderArtifacts(projectId);
+					// Reset button
+					btn.disabled = false;
+					btn.innerHTML = 'Confirm & Add';
+					btn.classList.replace('bg-emerald-600', 'bg-indigo-600');
+				}, 1000);
+			} else {
+				alert("Sync Error: " + error.message);
+				btn.disabled = false;
+				btn.innerHTML = 'Confirm & Add';
+			}
+		}
+
+		// 3. Render Artifacts (Refreshes list)
 		async function renderArtifacts(projectId) {
 			const tbody = document.getElementById(`artifacts-tbody-${projectId}`);
 			if (!tbody) return;
@@ -2741,43 +2833,21 @@ Chart.register(ChartZoom);
 
 			tbody.innerHTML = data.map(item => `
 				<tr class="border-t border-white/5 hover:bg-white/5 transition-colors">
-					<td class="p-4">
-						<div class="font-bold text-white text-[11px]">${item.item_name}</div>
-						<div class="text-[8px] text-slate-500 uppercase mt-0.5">${item.details || ''}</div>
+					<td class="p-4 sticky left-0 bg-slate-900/95 z-10 border-r border-white/5">
+						<div class="font-bold text-white text-[11px] uppercase">${item.item_name}</div>
+						<div class="text-[8px] text-slate-500 font-medium uppercase mt-0.5 truncate max-w-[150px]">${item.details || ''}</div>
 					</td>
-					<td class="p-4 text-center text-slate-300 font-bold">${item.quantity}</td>
+					<td class="p-4 text-center text-slate-300 font-bold">x ${item.quantity}</td>
 					<td class="p-4 text-center text-slate-300 font-bold">₹${item.cost_per_item.toLocaleString()}</td>
 					<td class="p-4 text-right font-black text-indigo-400">₹${item.total_cost.toLocaleString()}</td>
 					<td class="p-4 text-center">
-						<button onclick="generatePDFInvoice('${item.id}')" class="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg hover:bg-indigo-600 hover:text-white transition-all">
+						<button onclick="generatePDFInvoice('${item.id}')" class="p-2 bg-white/5 text-slate-400 hover:text-white hover:bg-indigo-600 rounded-lg transition-all shadow-sm">
 							<i data-lucide="download-cloud" class="w-3.5 h-3.5"></i>
 						</button>
 					</td>
 				</tr>
 			`).join('');
 			lucide.createIcons();
-		}
-
-		// 2. Create New Item (Admin Only)
-		async function addArtifactItem(projectId) {
-			if (!window.currentUserProfile?.is_admin) return alert("Unauthorized");
-
-			const name = prompt("Item Name (e.g., Material Estimation):");
-			if (!name) return;
-			const details = prompt("Description/Scope:");
-			const qty = parseFloat(prompt("Quantity:", "1")) || 1;
-			const cost = parseFloat(prompt("Cost Per Item (₹):", "0")) || 0;
-
-			const { error } = await sb.from('project_artifacts').insert([{
-				project_id: projectId,
-				item_name: name,
-				details: details,
-				quantity: qty,
-				cost_per_item: cost
-			}]);
-
-			if (error) alert("Sync Error: " + error.message);
-			else renderArtifacts(projectId);
 		}
 
 		// 3. Invoice PDF Generation
