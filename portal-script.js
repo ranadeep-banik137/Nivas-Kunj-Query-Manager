@@ -2839,7 +2839,7 @@ Chart.register(ChartZoom);
 					</td>
 					<td class="p-4 text-center text-slate-300 font-bold">x ${item.quantity}</td>
 					<td class="p-4 text-center text-slate-300 font-bold">₹${item.cost_per_item.toLocaleString()}</td>
-					<td class="p-4 text-right font-black text-indigo-400">₹${item.total_cost.toLocaleString()}</td>
+					<td class="p-4 text-right font-black text-indigo-400">₹${formatCurrency(item.total_cost)}</td>
 					<td class="p-4 text-center">
 						<button onclick="generatePDFInvoice('${item.project_id}')" class="p-2 bg-white/5 text-slate-400 hover:text-white hover:bg-indigo-600 rounded-lg transition-all shadow-sm">
 							<i data-lucide="download-cloud" class="w-3.5 h-3.5"></i>
@@ -2849,6 +2849,13 @@ Chart.register(ChartZoom);
 			`).join('');
 			lucide.createIcons();
 		}
+
+		const formatCurrency = (amount) => {
+			return Number(amount || 0).toLocaleString('en-IN', {
+				minimumFractionDigits: 2,
+				maximumFractionDigits: 2
+			});
+		};
 
 		async function generatePDFInvoice(projectId) {
 			const printArea = document.getElementById('printable-area'); // Matches your portal.html ID
@@ -2870,7 +2877,11 @@ Chart.register(ChartZoom);
 				.eq('enquiry_id', project.enquiry_id)
 				.single();
 
-			const grandTotal = artifacts.reduce((sum, item) => sum + (item.quantity * item.cost_per_item), 0);
+			const subTotal = artifacts.reduce((sum, item) => sum + (item.quantity * item.cost_per_item), 0);
+			const discountPercent = Number(project.discount) || 0;
+
+			const discountAmount = (subTotal * discountPercent) / 100;
+			const grandTotal = subTotal - discountAmount;
 
 			// 2. Build the Layout using your specific styling (Indigo/Slate)
 			printArea.innerHTML = `
@@ -2893,7 +2904,7 @@ Chart.register(ChartZoom);
 							<h4 style="font-size: 9px; font-weight: 900; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px; letter-spacing: 1px;">BILL TO</h4>
 							<p style="font-size: 16px; font-weight: 800; margin: 0; color: #1e1b4b;">${customer?.customer_name || 'Valued Client'}</p>
 							<p style="font-size: 12px; color: #475569; margin: 4px 0;">${customer?.email_id || project.client_email}</p>
-							<p style="font-size: 11px; color: #64748b; line-height: 1.4;">${customer?.address || 'Site Address Linked to Project'}</p>
+							<p style="font-size: 11px; color: #64748b; line-height: 1.4;">${customer?.phone_number || 'Site Address Linked to Project'}</p>
 						</div>
 						<div style="background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0;">
 							<h4 style="font-size: 9px; font-weight: 900; text-transform: uppercase; color: #64748b; margin-bottom: 6px;">PROJECT REFERENCE</h4>
@@ -2921,8 +2932,12 @@ Chart.register(ChartZoom);
 										<p style="font-size: 10px; color: #94a3b8; margin-top: 4px;">${item.details || ''}</p>
 									</td>
 									<td style="padding: 18px 12px; text-align: center; font-size: 12px; font-weight: 600;">${item.quantity}</td>
-									<td style="padding: 18px 12px; text-align: right; font-size: 12px; color: #475569;">₹${item.cost_per_item.toLocaleString('en-IN')}</td>
-									<td style="padding: 18px 12px; text-align: right; font-size: 13px; font-weight: 800; color: #1e1b4b;">₹${(item.quantity * item.cost_per_item).toLocaleString('en-IN')}</td>
+									<td style="padding: 18px 12px; text-align: right; font-size: 12px; color: #475569;">
+										₹${item.cost_per_item.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+									</td>
+									<td style="padding: 18px 12px; text-align: right; font-size: 13px; font-weight: 800; color: #1e1b4b;">
+										₹${(item.quantity * item.cost_per_item).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+									</td>
 								</tr>
 							`).join('')}
 						</tbody>
@@ -2935,15 +2950,32 @@ Chart.register(ChartZoom);
 							   2. This is a computer-generated document for client approval.</p>
 						</div>
 						<div style="min-width: 280px;">
+							<!-- Subtotal -->
+							<div style="display: flex; justify-content: space-between; padding: 10px 0;">
+								<span style="font-size: 13px; font-weight: 600; color: #334155;">Subtotal:</span>
+								<span style="font-size: 13px; font-weight: 700;">₹${formatCurrency(subTotal)}</span>
+							</div>
+
+							<!-- Discount -->
+							<div style="display: flex; justify-content: space-between; padding: 10px 0;">
+								<span style="font-size: 13px; font-weight: 600; color: #dc2626;">Discount:</span>
+								<span style="font-size: 13px; font-weight: 700; color: #dc2626;">
+									− ₹${formatCurrency(discountAmount)}
+								</span>
+							</div>
+						
 							<div style="display: flex; justify-content: space-between; padding: 15px 0; border-top: 2px solid #4f46e5;">
 								<span style="font-size: 14px; font-weight: 800; color: #1e1b4b;">Amount Payable:</span>
-								<span style="font-size: 20px; font-weight: 900; color: #4f46e5;">₹${grandTotal.toLocaleString('en-IN')}</span>
+								<span style="font-size: 13px; font-weight: 900; color: #1e1b4b;">
+									₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+								</span>
 							</div>
-							<div style="margin-top: 40px; text-align: center;">
-								<img id="inv-sig" src="https://github.com/ranadeep-banik137/Nivas-Kunj-Query-Manager/blob/main/sig.png?raw=true" style="height: 55px; margin-bottom: 8px;">
-								<div style="border-top: 1px solid #e2e8f0; padding-top: 8px;">
-									<p style="font-size: 11px; font-weight: 800; color: #1e1b4b; margin: 0;">Authorized Signatory</p>
-									<p style="font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Nivas Kunj Management</p>
+							<div style="text-align: center;">
+								<img id="inv-sig" src="https://github.com/ranadeep-banik137/Nivas-Kunj-Query-Manager/blob/main/sig.png?raw=true" 
+									 style="height: 100px; margin-bottom: 5px; margin-left: 5px; mix-blend-mode: multiply;">
+								<div style="border-top: 2px solid #1e1b4b; padding-top: 10px; width: 200px;">
+									<p style="margin: 0; font-size: 12px; font-weight: 900;">Authorized Signatory</p>
+									<p style="margin: 0; font-size: 10px; color: #64748b; font-weight: 600;">Deepjoy Banik, CEO & Founder</p>
 								</div>
 							</div>
 						</div>
