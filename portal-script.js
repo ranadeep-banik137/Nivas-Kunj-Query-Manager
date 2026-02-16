@@ -2481,7 +2481,36 @@ Chart.register(ChartZoom);
 				console.error("Fetch Enquiries Error:", err);
 				select.innerHTML = '<option value="">Failed to load enquiries</option>';
 			}
+			
+			document.getElementById('manual-project-lead').addEventListener('change', async (e) => {
+				const linkedEnquiryId = e.target.value;
+				const emailField = document.getElementById('manual-project-email');
+				
+				if (!linkedEnquiryId) {
+					emailField.value = '';
+					return;
+				}
 
+				try {
+					// Fetch the email immediately upon selection
+					const { data, error } = await sb
+						.from('customer_details')
+						.select('email_id')
+						.eq('enquiry_id', linkedEnquiryId)
+						.single();
+
+					if (error) throw error;
+					
+					if (data) {
+						emailField.value = data.email_id;
+						// Visual feedback that it auto-populated
+						emailField.classList.add('border-indigo-500'); 
+					}
+				} catch (err) {
+					console.error("Auto-populate failed:", err);
+				}
+			});
+			
 			lucide.createIcons();
 		}
 		
