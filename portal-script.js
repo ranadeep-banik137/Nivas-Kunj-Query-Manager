@@ -1651,81 +1651,148 @@ Chart.register(ChartZoom);
 			}
 		}
 		
+		let allProjects = [];      // Holds all projects from DB
+		let filteredProjects = [];  // Holds search/filtered results
+		// (Note: currentPage and itemsPerPage are already defined)
+		
 		async function loadAdminProjects() {
-			const grid = document.getElementById('projects-grid');
-			const pg = document.getElementById('pagination-controls');
-			grid.innerHTML = `<div class="col-span-full p-20 text-center animate-pulse text-slate-400 font-bold text-[10px] uppercase tracking-widest">Filtering Projects...</div>`;
-
-			let query = sb.from('projects').select('*', { count: 'exact' });
-
-			// Use the value from the search bar
-			const searchVal = document.getElementById('leadSearch').value.toLowerCase();
-			if (searchVal) {
-				query = query.or(`project_name.ilike.%${searchVal}%,client_email.ilike.%${searchVal}%`);
+			const grid = document.getElementById('admin-projects-grid');
+			
+			// Only fetch from DB if the array is empty (initial load)
+			if (allProjects.length === 0) {
+				grid.innerHTML = `<div class="p-20 text-center animate-pulse text-slate-400 font-bold text-[10px] uppercase tracking-widest">Accessing Secure Vault...</div>`;
+				try {
+					const { data, error } = await sb.from('projects').select('*').order('created_at', { ascending: false });
+					if (error) throw error;
+					allProjects = data;
+				} catch (err) {
+					grid.innerHTML = `<div class="p-10 text-red-400 text-xs font-bold uppercase">Sync Error: ${err.message}</div>`;
+					return;
+				}
 			}
 
-			// Use the value from the sort dropdown
-			const sortVal = document.getElementById('sortOrder').value;
-			if (sortVal === 'newest') query = query.order('created_at', { ascending: false });
-			else if (sortVal === 'oldest') query = query.order('created_at', { ascending: true });
-			else query = query.order('project_name', { ascending: true });
+			// Apply Sorting & Searching logic
+			const searchQuery = document.getElementById('leadSearch').value.toLowerCase();
+			const sortBy = document.getElementById('sortOrder').value;
 
-			// Pagination range
+			// 1. Filter
+			filteredProjects = allProjects.filter(p => 
+				p.project_name.toLowerCase().includes(searchQuery) || 
+				p.client_email.toLowerCase().includes(searchQuery)
+			);
+
+			// 2. Sort
+			if (sortBy === 'newest') filteredProjects.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+			else if (sortBy === 'oldest') filteredProjects.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+			renderProjectsTable();
+		}
+
+
+		function renderProjectsTable() {
+			const grid = document.getElementById('admin-projects-grid');
 			const start = (currentPage - 1) * itemsPerPage;
-			const end = start + itemsPerPage - 1;
-			query = query.range(start, end);
+			const end = start + itemsPerPage;
+			const paginated = filteredProjects.slice(start, end);
 
-			const { data: projects, count, error } = await query;
-			if (error) return console.error(error);
-
-			renderPagination(count);
-
-			if (!projects || projects.length === 0) {
-				grid.innerHTML = `<div class="col-span-full p-20 text-center text-slate-500 text-[10px] font-bold uppercase tracking-widest border border-dashed border-white/10 rounded-[32px]">No projects found</div>`;
-				pg.innerHTML = '';
+			if (paginated.length === 0) {
+				grid.innerHTML = `<div class="p-20 text-center text-slate-500 uppercase font-black text-xs tracking-widest">No Projects Found</div>`;
+				renderProjectPagination();
 				return;
 			}
 
-			const phases = ['Initiation', 'Design Concept', 'Procurement', 'Installation', 'Handover'];
-			grid.innerHTML = projects.map(proj => `
-				<div class="glass-panel p-6 rounded-[32px] border border-white/5 hover:border-indigo-500/30 transition-all group">
-					<div class="mb-6 flex justify-between items-start">
-						<div>
-							<h3 class="text-lg font-black text-white uppercase tracking-tighter">${proj.project_name}</h3>
-							<p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">${proj.client_email}</p>
-						</div>
-					</div>
-
-					<div class="grid grid-cols-2 gap-3 mb-4">
-						<div>
-							<label class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Phase</label>
-							<select onchange="updateProjectField('${proj.id}', 'current_phase', this.value)" 
-									class="w-full bg-slate-950 border border-white/10 rounded-xl py-2 px-2 text-[9px] font-bold text-white outline-none">
-								${phases.map(p => `<option value="${p}" ${proj.current_phase === p ? 'selected' : ''}>${p}</option>`).join('')}
-							</select>
-						</div>
-						<div>
-							<label class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Completion</label>
-							<select onchange="updateProjectField('${proj.id}', 'progress_percent', parseInt(this.value))" 
-									class="w-full bg-slate-950 border border-white/10 rounded-xl py-2 px-2 text-[9px] font-bold text-white outline-none">
-								${[0, 10, 25, 50, 75, 100].map(v => `<option value="${v}" ${proj.progress_percent === v ? 'selected' : ''}>${v}%</option>`).join('')}
-							</select>
-						</div>
-					</div>
-
-					<div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden mb-6">
-						<div class="h-full bg-indigo-500 transition-all duration-700 shadow-[0_0_10px_rgba(79,70,229,0.4)]" style="width: ${proj.progress_percent}%"></div>
-					</div>
-
-					<button onclick="openProjectWorkspace('${proj.id}')" 
-							class="w-full py-3 bg-white/5 border border-white/10 rounded-2xl text-[9px] font-black text-white uppercase tracking-widest hover:bg-white hover:text-black transition-all">
-						Enter Control Room
-					</button>
+			grid.innerHTML = `
+				<div class="w-full overflow-x-auto min-w-full">
+					<table class="w-full border-separate border-spacing-y-3" style="table-layout: fixed;">
+						<thead>
+							<tr class="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+								<th class="pb-4 pl-6 w-1/4">Project Identity</th>
+								<th class="pb-4 w-1/4">Client Email</th>
+								<th class="pb-4 w-1/6">Execution Phase</th>
+								<th class="pb-4 w-1/6">Completion</th>
+								<th class="pb-4 pr-6 text-right w-1/6">Actions</th>
+							</tr>
+						</thead>
+						<tbody>
+							${paginated.map(proj => `
+								<tr class="glass-panel group hover:border-indigo-500/50 transition-all duration-300">
+									<td class="py-4 pl-6 rounded-l-2xl border-y border-l border-white/5">
+										<div class="flex items-center gap-3">
+											<div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+												<i data-lucide="layers" class="w-4 h-4"></i>
+											</div>
+											<div class="truncate">
+												<p class="text-sm font-bold text-white tracking-tight truncate">${proj.project_name}</p>
+												<p class="text-[8px] text-slate-500 font-bold uppercase tracking-widest mt-1">ID: ${proj.id.slice(0, 8)}</p>
+											</div>
+										</div>
+									</td>
+									<td class="py-4 border-y border-white/5 truncate">
+										<span class="text-xs font-medium text-slate-300">${proj.client_email}</span>
+									</td>
+									<td class="py-4 border-y border-white/5">
+										<select onchange="updateProjectPhase('${proj.id}', this.value)" 
+											class="bg-slate-900/50 border border-white/10 rounded-lg text-[10px] font-bold text-indigo-300 px-3 py-1.5 outline-none">
+											${['Onboarding', 'Initiation', 'Design Concept', 'Procurement', 'Installation', 'Handover']
+												.map(phase => `<option value="${phase}" ${proj.current_phase === phase ? 'selected' : ''}>${phase}</option>`).join('')}
+										</select>
+									</td>
+									<td class="py-4 border-y border-white/5">
+										<select onchange="updateProjectProgress('${proj.id}', this.value)" 
+											class="bg-slate-900/50 border border-white/10 rounded-lg text-[10px] font-bold text-emerald-400 px-3 py-1.5 outline-none">
+											${[0, 10, 25, 50, 75, 90, 100]
+												.map(pct => `<option value="${pct}" ${proj.progress_percent == pct ? 'selected' : ''}>${pct}%</option>`).join('')}
+										</select>
+									</td>
+									<td class="py-4 pr-6 rounded-r-2xl border-y border-r border-white/5 text-right">
+										<button onclick="openProjectWorkspace('${proj.id}')" 
+											class="bg-indigo-600/10 hover:bg-indigo-600 border border-indigo-500/20 text-indigo-400 hover:text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ml-auto group/btn">
+											<span>Control Room</span>
+											<i data-lucide="arrow-right" class="w-3 h-3 group-hover/btn:translate-x-1 transition-transform"></i>
+										</button>
+									</td>
+								</tr>
+							`).join('')}
+						</tbody>
+					</table>
 				</div>
-			`).join('');
+			`;
+			renderProjectPagination();
 			lucide.createIcons();
 		}
 
+		function changePage(step) {
+			currentPage += step;
+			if (currentTab === 'projects') {
+				renderProjectsTable(); //
+			} else {
+				renderTable(); // Original enquiries table
+			}
+			window.scrollTo({ top: 0, behavior: 'smooth' });
+		}
+
+		function renderProjectPagination() {
+			const pg = document.getElementById('pagination-controls');
+			const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
+			
+			if (totalPages <= 1) { pg.innerHTML = ''; return; }
+
+			pg.innerHTML = `
+				<button onclick="changePage(-1)" ${currentPage === 1 ? 'disabled' : ''} class="p-2 text-slate-500 hover:text-white disabled:opacity-20 transition"><i data-lucide="chevron-left"></i></button>
+				<span class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Page ${currentPage} of ${totalPages}</span>
+				<button onclick="changePage(1)" ${currentPage === totalPages ? 'disabled' : ''} class="p-2 text-slate-500 hover:text-white disabled:opacity-20 transition"><i data-lucide="chevron-right"></i></button>
+			`;
+			lucide.createIcons();
+		}
+
+		async function updateProjectPhase(id, phase) {
+			await sb.from('projects').update({ current_phase: phase }).eq('id', id);
+		}
+
+		async function updateProjectProgress(id, progress) {
+			await sb.from('projects').update({ progress_percent: parseInt(progress) }).eq('id', id);
+		}
+		
 		// Single function to update any field in the projects table
 		async function updateProjectField(projectId, field, value) {
 			const updateData = {};
