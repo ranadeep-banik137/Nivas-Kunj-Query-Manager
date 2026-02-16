@@ -775,7 +775,7 @@ Chart.register(ChartZoom);
 				const { data: proj } = await sb.from('projects').select('*').eq('id', projectId).single();
 				const { data: enqLinks } = await sb.from('enquiry_details').select('enquiry_id').eq('project_id', projectId);
 				const enqIds = enqLinks ? enqLinks.map(l => l.enquiry_id) : [];
-
+				
 				const [rawRes, quoteRes, customerRes, allFilesRes] = await Promise.all([
 					sb.from('raw_enquiries').select('id, is_quote').in('id', enqIds),
 					sb.from('quote_details').select('*').in('enquiry_id', enqIds),
@@ -783,6 +783,7 @@ Chart.register(ChartZoom);
 					sb.from('project_files').select('*').eq('project_id', projectId).order('created_at', { ascending: false })
 				]);
 
+				
 				// SEPARATION LOGIC: Find the invoice for the sidebar, filter it out for the assets grid
 				const invoiceData = allFilesRes.data?.find(f => f.is_invoice === true);
 				const assetsOnly = allFilesRes.data?.filter(f => f.is_invoice !== true) || [];
@@ -792,7 +793,7 @@ Chart.register(ChartZoom);
 				if (quoteEnquiry) {
 					const qDetail = quoteRes.data?.find(q => q.enquiry_id === quoteEnquiry.id);
 					if (qDetail) {
-						projectSite = [qDetail.pincode, qDetail.landmark, qDetail.city].filter(Boolean).join(', ');
+						projectSite = [qDetail.pincode, qDetail.landmark, qDetail.city].join(', ');
 						projectArea = qDetail.area_sqft ? `${qDetail.area_sqft} Sq. Ft.` : "N/A";
 						projectType = qDetail.flat_type || "Standard Project";
 					}
@@ -2419,7 +2420,9 @@ Chart.register(ChartZoom);
 		
 		async function openManualProjectModal() {
 			const modal = document.getElementById('manual-project-modal');
-			const select = document.getElementById('manual-enquiry-link');
+			const select = document.getElementById('manual-project-lead');
+			
+			modal.classList.remove('hidden');
 			
 			// Reset and show loading state
 			select.innerHTML = '<option value="">Loading Enquiries...</option>';
@@ -2481,67 +2484,147 @@ Chart.register(ChartZoom);
 
 			lucide.createIcons();
 		}
+		
+		let currentCreationTab = 'linked';
+
+		function switchProjectCreationTab(tab) {
+			currentCreationTab = tab;
+			const linkedSec = document.getElementById('section-linked');
+			const createSec = document.getElementById('section-create');
+			const linkedBtn = document.getElementById('btn-tab-linked');
+			const createBtn = document.getElementById('btn-tab-create');
+
+			if (tab === 'linked') {
+				linkedSec.classList.remove('hidden');
+				createSec.classList.add('hidden');
+				linkedBtn.className = "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all bg-indigo-600 text-white";
+				createBtn.className = "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-white/5";
+			} else {
+				createSec.classList.remove('hidden');
+				linkedSec.classList.add('hidden');
+				createBtn.className = "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all bg-indigo-600 text-white";
+				linkedBtn.className = "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-white/5";
+			}
+		}
+
+		async function establishProject() {
+			const btn = document.getElementById('establish-btn');
+			const title = document.getElementById('manual-project-title').value;
+			if (!title) return alert("Title is required");
+
+			btn.disabled = true;
+			btn.innerText = "Establishing...";
+
+			try {
+				if (currentCreationTab === 'linked') {
+					const email = document.getElementById('manual-project-email').value;
+					const linkedEnquiryId = document.getElementById('manual-project-lead').value;
+
+					if (!title || !email) {
+						alert("Please provide both Name and Client Email.");
+						return;
+					}					
+
+					try {
+						const newProjectId = crypto.randomUUID();
+
+						// 1. Insert the Project
+						const { error: projError } = await sb.from('projects').insert({
+							id: newProjectId,
+							project_name: title,
+							client_email: email,
+							current_phase: 'Onboarding',
+							enquiry_id: linkedEnquiryId || null // Link if selected, else null
+						});
+
+						if (projError) throw projError;
+
+						// 2. If an enquiry was linked, mark it as a project in enquiry_details
+						if (linkedEnquiryId) {
+							const { error: updateError } = await sb
+								.from('enquiry_details')
+								.update({ 
+									is_project: true,
+									project_id: newProjectId,
+									status_id: 5 // Set to "Converted" status
+								})
+								.eq('enquiry_id', linkedEnquiryId);
+
+							if (updateError) throw updateError;
+						}
+
+						alert(`PROJECT ESTABLISHED: ${title}`);
+						closeManualProjectModal();
+						openProjectWorkspace(newProjectId);
+						
+					} catch (err) {
+						console.error(err);
+						alert("Failed to create manual project: " + err.message);
+					} finally {
+						btn.disabled = false;
+						btn.innerText = "Establish Project";
+					}
+				} else {
+					// NEW CREATE FLOW
+					const name = document.getElementById('create-client-name').value;
+					const email = document.getElementById('create-client-email').value;
+					const phone = document.getElementById('create-client-phone').value;
+					const address = document.getElementById('create-client-address').value;
+					const area = document.getElementById('create-client-area').value || 0;
+
+					// a. Insert raw_enquiries
+					const { data: rawData, error: e1 } = await sb.from('raw_enquiries')
+						.insert([{ is_quote: true, query_data: `Manual project creation: ${title}` }])
+						.select().single();
+					if (e1) throw e1;
+
+					const enquiryId = rawData.id;
+
+					// b. Insert quote_details
+					const { error: e2 } = await sb.from('quote_details')
+						.insert([{ enquiry_id: enquiryId, area_sqft: area, landmark: address, flat_type: 'OTHERS' }]);
+					if (e2) throw e2;
+
+					// c. Insert customer_details
+					const { error: e3 } = await sb.from('customer_details')
+						.insert([{ enquiry_id: enquiryId, customer_name: name, email_id: email, phone_number: phone }]);
+					if (e3) throw e3;
+
+					// d. Insert projects
+					const { data: projectData, error: e4 } = await sb.from('projects')
+						.insert([{ enquiry_id: enquiryId, project_name: title, client_email: email }])
+						.select().single();
+					if (e4) throw e4;
+					
+					const { error: updateError } = await sb
+								.from('enquiry_details')
+								.update({ 
+									is_project: true,
+									project_id: projectData.id,
+									status_id: 5 // Set to "Converted" status
+								})
+								.eq('enquiry_id', enquiryId);
+
+					if (updateError) throw updateError;
+
+					// Redirect
+					closeManualProjectModal();
+					openProjectWorkspace(projectData.id);
+				}
+				//if (typeof fetchAdminData === 'function') fetchAdminData();
+			} catch (err) {
+				alert("Error: " + err.message);
+			} finally {
+				btn.disabled = false;
+				btn.innerText = "ESTABLISHING...";
+			}
+		}
 
 		function closeManualProjectModal() {
 			document.getElementById('manual-project-modal').classList.add('hidden');
-			document.getElementById('manual-project-name').value = '';
-			document.getElementById('manual-client-email').value = '';
-			document.getElementById('manual-enquiry-link').value = ''; // Reset link
-		}
-
-		async function handleManualProjectCreation() {
-			const name = document.getElementById('manual-project-name').value;
-			const email = document.getElementById('manual-client-email').value;
-			const linkedEnquiryId = document.getElementById('manual-enquiry-link').value;
-			const btn = document.getElementById('manual-proj-btn');
-
-			if (!name || !email) {
-				alert("Please provide both Name and Client Email.");
-				return;
-			}
-
-			btn.disabled = true;
-			btn.innerText = "ESTABLISHING...";
-
-			try {
-				const newProjectId = crypto.randomUUID();
-
-				// 1. Insert the Project
-				const { error: projError } = await sb.from('projects').insert({
-					id: newProjectId,
-					project_name: name,
-					client_email: email,
-					current_phase: 'Onboarding',
-					enquiry_id: linkedEnquiryId || null // Link if selected, else null
-				});
-
-				if (projError) throw projError;
-
-				// 2. If an enquiry was linked, mark it as a project in enquiry_details
-				if (linkedEnquiryId) {
-					const { error: updateError } = await sb
-						.from('enquiry_details')
-						.update({ 
-							is_project: true,
-							project_id: newProjectId,
-							status_id: 5 // Set to "Converted" status
-						})
-						.eq('enquiry_id', linkedEnquiryId);
-
-					if (updateError) throw updateError;
-				}
-
-				alert(`PROJECT ESTABLISHED: ${name}`);
-				closeManualProjectModal();
-				if (typeof fetchAdminData === 'function') fetchAdminData();
-
-			} catch (err) {
-				console.error(err);
-				alert("Failed to create manual project: " + err.message);
-			} finally {
-				btn.disabled = false;
-				btn.innerText = "Establish Project";
-			}
+			document.getElementById('manual-project-title').value = '';
+			document.getElementById('manual-project-email').value = '';
+			document.getElementById('manual-project-lead').value = ''; // Reset link
 		}
 		
 		let currentClientView = 'projects';
