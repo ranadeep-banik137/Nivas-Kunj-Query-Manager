@@ -2858,9 +2858,8 @@ Chart.register(ChartZoom);
 		};
 
 		async function generatePDFInvoice(projectId) {
-			const printArea = document.getElementById('printable-area'); // Matches your portal.html ID
-			
-			// 1. Fetch data from your specific Supabase tables
+			const printArea = document.getElementById('printable-area');
+
 			const [projRes, artifactsRes] = await Promise.all([
 				sb.from('projects').select('*').eq('id', projectId).single(),
 				sb.from('project_artifacts').select('*').eq('project_id', projectId)
@@ -2870,8 +2869,7 @@ Chart.register(ChartZoom);
 
 			const project = projRes.data;
 			const artifacts = artifactsRes.data || [];
-			
-			// Fetch Client Details using the enquiry_id link found in your code
+
 			const { data: customer } = await sb.from('customer_details')
 				.select('*')
 				.eq('enquiry_id', project.enquiry_id)
@@ -2879,142 +2877,205 @@ Chart.register(ChartZoom);
 
 			const subTotal = artifacts.reduce((sum, item) => sum + (item.quantity * item.cost_per_item), 0);
 			const discountPercent = Number(project.discount) || 0;
-
 			const discountAmount = (subTotal * discountPercent) / 100;
 			const grandTotal = subTotal - discountAmount;
 			const roundedTotal = Math.round(grandTotal);
 			const roundOffAmount = roundedTotal - grandTotal;
 
-			// 2. Build the Layout using your specific styling (Indigo/Slate)
 			printArea.innerHTML = `
-				<div style="padding: 60px; font-family: 'Inter', sans-serif; color: #1e293b; background: white; min-height: 100vh;">
-					<div style="display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #f1f5f9; padding-bottom: 30px; margin-bottom: 40px;">
+				<div style="padding:80px 70px; font-family:'Inter',sans-serif; color:#1e293b; background:#ffffff; min-height:100vh;">
+
+					<!-- HEADER -->
+					<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:70px;">
 						<div>
-							<img id="inv-logo" src="https://github.com/ranadeep-banik137/NivasKunjInteriors/blob/main/logo%20transparent%20PNG.png?raw=true" style="height: 50px; margin-bottom: 10px;">
-							<h2 style="margin: 0; color: #4f46e5; font-weight: 900; letter-spacing: -1px;">NIVAS KUNJ</h2>
-							<p style="font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 2px; font-weight: 700;">Luxury Interiors & Architecture</p>
+							<img id="inv-logo"
+								 src="https://github.com/ranadeep-banik137/NivasKunjInteriors/blob/main/logo%20transparent%20PNG.png?raw=true"
+								 style="height:55px; margin-bottom:18px;">
+
+							<h2 style="margin:0; font-weight:900; letter-spacing:1px; font-size:22px; color:#111827;">
+								NIVAS KUNJ
+							</h2>
+
+							<p style="margin-top:6px; font-size:11px; letter-spacing:3px; text-transform:uppercase; color:#6b7280;">
+								Luxury Interiors & Architecture
+							</p>
 						</div>
-						<div style="text-align: right;">
-							<h1 style="font-size: 32px; font-weight: 900; margin: 0; color: #f1f5f9; letter-spacing: 4px;">INVOICE</h1>
-							<p style="font-size: 11px; font-weight: 700; color: #1e293b; margin-top: 8px;">REF: INV-${projectId.slice(0, 8).toUpperCase()}</p>
-							<p style="font-size: 11px; color: #64748b;">DATE: ${new Date().toLocaleDateString('en-IN')}</p>
+
+						<div style="text-align:right;">
+							<h1 style="font-size:34px; font-weight:900; margin:0; letter-spacing:4px;">
+								INVOICE
+							</h1>
+							<p style="margin-top:12px; font-size:12px; font-weight:600;">
+								REF: INV-${projectId.slice(0,8).toUpperCase()}
+							</p>
+							<p style="font-size:12px; color:#6b7280;">
+								DATE: ${new Date().toLocaleDateString('en-IN')}
+							</p>
 						</div>
 					</div>
 
-					<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px;">
-						<div>
-							<h4 style="font-size: 9px; font-weight: 900; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px; letter-spacing: 1px;">BILL TO</h4>
-							<p style="font-size: 16px; font-weight: 800; margin: 0; color: #1e1b4b;">${customer?.customer_name || 'Valued Client'}</p>
-							<p style="font-size: 12px; color: #475569; margin: 4px 0;">${customer?.email_id || project.client_email}</p>
-							<p style="font-size: 11px; color: #64748b; line-height: 1.4;">${customer?.phone_number || 'Site Address Linked to Project'}</p>
+
+					<!-- BILL TO + PROJECT -->
+					<div style="display:flex; justify-content:space-between; margin-bottom:70px;">
+						<div style="width:48%;">
+							<h4 style="font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#6b7280; margin-bottom:14px;">
+								Bill To
+							</h4>
+
+							<p style="font-size:17px; font-weight:700; margin:0;">
+								${customer?.customer_name || 'Valued Client'}
+							</p>
+							<p style="margin-top:6px; font-size:13px;">
+								${customer?.email_id || project.client_email}
+							</p>
+							<p style="margin-top:4px; font-size:13px; color:#6b7280;">
+								${customer?.phone_number || 'Site Address Linked to Project'}
+							</p>
 						</div>
-						<div style="background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0;">
-							<h4 style="font-size: 9px; font-weight: 900; text-transform: uppercase; color: #64748b; margin-bottom: 6px;">PROJECT REFERENCE</h4>
-							<p style="font-size: 14px; font-weight: 800; color: #1e1b4b; margin: 0;">${project.project_name}</p>
-							<p style="font-size: 10px; color: #4f46e5; font-weight: 800; margin-top: 4px; text-transform: uppercase;">STATUS: ${project.current_phase}</p>
+
+						<div style="width:40%; text-align:right;">
+							<h4 style="font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#6b7280; margin-bottom:14px;">
+								Project Reference
+							</h4>
+
+							<p style="font-size:15px; font-weight:700; margin:0;">
+								${project.project_name}
+							</p>
+
+							<p style="margin-top:6px; font-size:12px; font-weight:600; color:#4f46e5; text-transform:uppercase;">
+								STATUS: ${project.current_phase}
+							</p>
 						</div>
 					</div>
 
-					<table style="width: 100%; border-collapse: collapse; margin-bottom: 40px;">
+
+					<!-- TABLE -->
+					<table style="width:100%; border-collapse:collapse; margin-bottom:60px;">
+
 						<thead>
-							<tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
-								<th style="padding: 12px; text-align: left; font-size: 9px; font-weight: 900; color: #64748b; text-transform: uppercase;">SL</th>
-								<th style="padding: 12px; text-align: left; font-size: 9px; font-weight: 900; color: #64748b; text-transform: uppercase;">Service Description</th>
-								<th style="padding: 12px; text-align: center; font-size: 9px; font-weight: 900; color: #64748b; text-transform: uppercase;">Qty</th>
-								<th style="padding: 12px; text-align: right; font-size: 9px; font-weight: 900; color: #64748b; text-transform: uppercase;">Rate</th>
-								<th style="padding: 12px; text-align: right; font-size: 9px; font-weight: 900; color: #64748b; text-transform: uppercase;">Total</th>
+							<tr style="border-bottom:2px solid #111827;">
+								<th style="padding:14px 8px; text-align:left; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#6b7280;">SL</th>
+								<th style="padding:14px 8px; text-align:left; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#6b7280;">Service Description</th>
+								<th style="padding:14px 8px; text-align:center; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#6b7280;">Qty</th>
+								<th style="padding:14px 8px; text-align:right; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#6b7280;">Rate</th>
+								<th style="padding:14px 8px; text-align:right; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#6b7280;">Total</th>
 							</tr>
 						</thead>
+
 						<tbody>
 							${artifacts.map((item, index) => `
-								<tr style="border-bottom: 1px solid #f1f5f9;">
-									<td style="padding: 18px 12px; font-size: 11px; color: #64748b;">${index + 1}</td>
-									<td style="padding: 18px 12px;">
-										<p style="font-size: 13px; font-weight: 700; color: #1e1b4b; margin: 0;">${item.item_name}</p>
-										<p style="font-size: 10px; color: #94a3b8; margin-top: 4px;">${item.details || ''}</p>
+								<tr style="border-bottom:1px solid #e5e7eb;">
+									<td style="padding:22px 8px; font-size:13px; color:#6b7280;">
+										${index + 1}
 									</td>
-									<td style="padding: 18px 12px; text-align: center; font-size: 12px; font-weight: 600;">${item.quantity}</td>
-									<td style="padding: 18px 12px; text-align: right; font-size: 12px; color: #475569;">
-										₹${item.cost_per_item.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+
+									<td style="padding:22px 8px;">
+										<div style="font-size:14px; font-weight:600; color:#111827;">
+											${item.item_name}
+										</div>
+										<div style="font-size:12px; color:#6b7280; margin-top:6px;">
+											${item.details || ''}
+										</div>
 									</td>
-									<td style="padding: 18px 12px; text-align: right; font-size: 13px; font-weight: 800; color: #1e1b4b;">
-										₹${(item.quantity * item.cost_per_item).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+
+									<td style="padding:22px 8px; text-align:center; font-size:13px;">
+										${item.quantity}
+									</td>
+
+									<td style="padding:22px 8px; text-align:right; font-size:13px;">
+										₹${item.cost_per_item.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}
+									</td>
+
+									<td style="padding:22px 8px; text-align:right; font-size:14px; font-weight:600;">
+										₹${(item.quantity * item.cost_per_item).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}
 									</td>
 								</tr>
 							`).join('')}
 						</tbody>
 					</table>
 
-					<div style="display: flex; justify-content: space-between; align-items: end; margin-top: 20px;">
-						<div style="max-width: 320px; font-size: 10px; color: #94a3b8; line-height: 1.6;">
-							<h4 style="color: #1e293b; font-weight: 900; text-transform: uppercase; font-size: 9px; margin-bottom: 8px;">Terms & Notes</h4>
-							<p>1. Please include Invoice Ref in all bank transfers.<br>
-							   2. This is a computer-generated document for client approval.</p>
+
+					<!-- FOOTER AREA (UNCHANGED STRUCTURE) -->
+					<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:20px;">
+
+						<!-- TERMS EXACT -->
+						<div style="max-width:320px; font-size:10px; color:#6b7280; line-height:1.6;">
+							<h4 style="color:#111827; font-weight:700; text-transform:uppercase; font-size:10px; margin-bottom:10px;">
+								Terms & Notes
+							</h4>
+							<p>
+								1. Please include Invoice Ref in all bank transfers.<br>
+								2. This is a computer-generated document for client approval.
+							</p>
 						</div>
-						<div style="min-width: 280px;">
-							<!-- Subtotal -->
-							<div style="display: flex; justify-content: space-between; padding: 10px 0;">
-								<span style="font-size: 13px; font-weight: 600; color: #334155;">Subtotal:</span>
-								<span style="font-size: 13px; font-weight: 700;">₹${formatCurrency(subTotal)}</span>
+
+						<!-- TOTALS EXACT STRUCTURE -->
+						<div style="min-width:300px;">
+
+							<div style="display:flex; justify-content:space-between; padding:10px 0;">
+								<span style="font-size:13px;">Subtotal:</span>
+								<span style="font-size:13px; font-weight:600;">₹${formatCurrency(subTotal)}</span>
 							</div>
 
-							<!-- Discount -->
-							<div style="display: flex; justify-content: space-between; padding: 8px 0;">
-								<span style="font-size: 13px; font-weight: 600; color: #dc2626;">
+							<div style="display:flex; justify-content:space-between; padding:8px 0;">
+								<span style="font-size:13px; color:#dc2626;">
 									Discount (${discountPercent}%):
 								</span>
-								<span style="font-size: 13px; font-weight: 700; color: #dc2626;">
+								<span style="font-size:13px; font-weight:600; color:#dc2626;">
 									− ₹${formatCurrency(discountAmount)}
 								</span>
 							</div>
-						
-							<!-- Grand Total -->
-							<div style="display: flex; justify-content: space-between; padding: 8px 0;">
-								<span style="font-size: 13px; font-weight: 600;">Grand Total:</span>
-								<span style="font-size: 13px; font-weight: 700;">
+
+							<div style="display:flex; justify-content:space-between; padding:8px 0;">
+								<span style="font-size:13px;">Grand Total:</span>
+								<span style="font-size:13px; font-weight:600;">
 									₹${formatCurrency(grandTotal)}
 								</span>
 							</div>
 
-							<!-- Round Off -->
-							<div style="display: flex; justify-content: space-between; padding: 8px 0;">
-								<span style="font-size: 13px; font-weight: 600; color: #64748b;">
-									Round Off:
-								</span>
-								<span style="font-size: 13px; font-weight: 700; color: #64748b;">
+							<div style="display:flex; justify-content:space-between; padding:8px 0;">
+								<span style="font-size:13px; color:#6b7280;">Round Off:</span>
+								<span style="font-size:13px; font-weight:600; color:#6b7280;">
 									${roundOffAmount >= 0 ? '+' : '−'} ₹${formatCurrency(Math.abs(roundOffAmount))}
 								</span>
 							</div>
 
-							<!-- Divider -->
-							<div style="border-top: 2px solid #4f46e5; margin: 14px 0;"></div>
+							<div style="border-top:2px solid #111827; margin:18px 0;"></div>
 
-							<!-- Net Payable -->
-							<div style="display: flex; justify-content: space-between; padding: 10px 0;">
-								<span style="font-size: 16px; font-weight: 900; color: #1e1b4b;">
+							<div style="display:flex; justify-content:space-between; padding:10px 0;">
+								<span style="font-size:16px; font-weight:800;">
 									Net Amount Payable:
 								</span>
-								<span style="font-size: 22px; font-weight: 900; color: #4f46e5;">
+								<span style="font-size:22px; font-weight:800;">
 									₹${formatCurrency(roundedTotal)}
 								</span>
 							</div>
-							<div style="text-align: center;">
-								<img id="inv-sig" src="https://github.com/ranadeep-banik137/Nivas-Kunj-Query-Manager/blob/main/sig.png?raw=true" 
-									 style="height: 100px; margin-bottom: 5px; margin-left: 5px; mix-blend-mode: multiply;">
-								<div style="border-top: 2px solid #1e1b4b; padding-top: 10px; width: 200px;">
-									<p style="margin: 0; font-size: 12px; font-weight: 900;">Authorized Signatory</p>
-									<p style="margin: 0; font-size: 10px; color: #64748b; font-weight: 600;">Deepjoy Banik, CEO & Founder</p>
+
+							<!-- SIGNATURE EXACT -->
+							<div style="text-align:center; margin-top:30px;">
+								<img id="inv-sig"
+									 src="https://github.com/ranadeep-banik137/Nivas-Kunj-Query-Manager/blob/main/sig.png?raw=true"
+									 style="height:100px; margin-bottom:5px; margin-left:60px; mix-blend-mode:multiply;">
+								<div style="border-top:2px solid #111827; padding-top:10px; width:200px; margin:0 auto;">
+									<p style="margin:0; font-size:12px; font-weight:700;">
+										Authorized Signatory
+									</p>
+									<p style="margin:0; font-size:10px; color:#6b7280; font-weight:600;">
+										Deepjoy Banik, CEO & Founder
+									</p>
 								</div>
 							</div>
+
 						</div>
 					</div>
-				</div>
-			`;
 
-			// 3. Image Loading Safety Check (Logic from your generatePaymentPDF)
+				</div>
+				`;
+
+
 			const logoImg = document.getElementById('inv-logo');
 			const sigImg = document.getElementById('inv-sig');
-			
+
 			const waitImg = (img) => new Promise(res => {
 				if (!img) return res();
 				if (img.complete) res();
@@ -3022,10 +3083,7 @@ Chart.register(ChartZoom);
 			});
 
 			await Promise.all([waitImg(logoImg), waitImg(sigImg)]);
-			
-			// 4. Trigger Native Print
-			window.print();
 
-			// 5. Clear print area to keep DOM clean
+			window.print();
 			printArea.innerHTML = '';
 		}
