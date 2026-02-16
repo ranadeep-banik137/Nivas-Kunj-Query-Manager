@@ -2882,6 +2882,8 @@ Chart.register(ChartZoom);
 
 			const discountAmount = (subTotal * discountPercent) / 100;
 			const grandTotal = subTotal - discountAmount;
+			const roundedTotal = Math.round(grandTotal);
+			const roundOffAmount = roundedTotal - grandTotal;
 
 			// 2. Build the Layout using your specific styling (Indigo/Slate)
 			printArea.innerHTML = `
@@ -2957,17 +2959,43 @@ Chart.register(ChartZoom);
 							</div>
 
 							<!-- Discount -->
-							<div style="display: flex; justify-content: space-between; padding: 10px 0;">
-								<span style="font-size: 13px; font-weight: 600; color: #dc2626;">Discount:</span>
+							<div style="display: flex; justify-content: space-between; padding: 8px 0;">
+								<span style="font-size: 13px; font-weight: 600; color: #dc2626;">
+									Discount (${discountPercent}%):
+								</span>
 								<span style="font-size: 13px; font-weight: 700; color: #dc2626;">
 									− ₹${formatCurrency(discountAmount)}
 								</span>
 							</div>
 						
-							<div style="display: flex; justify-content: space-between; padding: 15px 0; border-top: 2px solid #4f46e5;">
-								<span style="font-size: 14px; font-weight: 800; color: #1e1b4b;">Amount Payable:</span>
-								<span style="font-size: 13px; font-weight: 900; color: #1e1b4b;">
-									₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+							<!-- Grand Total -->
+							<div style="display: flex; justify-content: space-between; padding: 8px 0;">
+								<span style="font-size: 13px; font-weight: 600;">Grand Total:</span>
+								<span style="font-size: 13px; font-weight: 700;">
+									₹${formatCurrency(grandTotal)}
+								</span>
+							</div>
+
+							<!-- Round Off -->
+							<div style="display: flex; justify-content: space-between; padding: 8px 0;">
+								<span style="font-size: 13px; font-weight: 600; color: #64748b;">
+									Round Off:
+								</span>
+								<span style="font-size: 13px; font-weight: 700; color: #64748b;">
+									${roundOffAmount >= 0 ? '+' : '−'} ₹${formatCurrency(Math.abs(roundOffAmount))}
+								</span>
+							</div>
+
+							<!-- Divider -->
+							<div style="border-top: 2px solid #4f46e5; margin: 14px 0;"></div>
+
+							<!-- Net Payable -->
+							<div style="display: flex; justify-content: space-between; padding: 10px 0;">
+								<span style="font-size: 16px; font-weight: 900; color: #1e1b4b;">
+									Net Amount Payable:
+								</span>
+								<span style="font-size: 22px; font-weight: 900; color: #4f46e5;">
+									₹${formatCurrency(roundedTotal)}
 								</span>
 							</div>
 							<div style="text-align: center;">
