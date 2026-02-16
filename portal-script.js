@@ -2954,10 +2954,10 @@ Chart.register(ChartZoom);
 
 						<thead>
 							<tr style="border-bottom:2px solid #111827;">
-								<th style="padding:14px 8px; text-align:left; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#6b7280;">SL</th>
+								<th style="padding:14px 8px; text-align:left; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#6b7280;">#</th>
 								<th style="padding:14px 8px; text-align:left; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#6b7280;">Service Description</th>
-								<th style="padding:14px 8px; text-align:center; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#6b7280;">Qty</th>
-								<th style="padding:14px 8px; text-align:right; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#6b7280;">Rate</th>
+								<th style="padding:14px 8px; text-align:center; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#6b7280;">Qty/Sq.FT</th>
+								<th style="padding:14px 8px; text-align:right; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#6b7280;">Rate (Per Qty/Sq.ft)</th>
 								<th style="padding:14px 8px; text-align:right; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#6b7280;">Total</th>
 							</tr>
 						</thead>
